@@ -31,11 +31,12 @@ YUI().add("slider-ticks", function ( Y ) {
         prototype: { 
             _onRenderAddTicks: function( e ) 
             {
-            sThumbUrl = this.get( 'thumbUrl' );
-            sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.png" );
+            var sThumbUrl = this.get( 'thumbUrl' );
+            sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.php" );
             
-                oSlide = Y.Node.getDOMNode( e.parentNode );
-                nTicks =  parseInt( this.get( 'ticks' ) );                     
+                var oSlide = Y.Node.getDOMNode( e.parentNode );
+                var nTicks =  parseInt( this.get( 'ticks' ) );
+                var nPos;                     
                 for(i = 0; i < nTicks; i++) {                
                     oTick = Y.DOM.create( "<div id='tick" + i + "'></div>" );            
                     Y.DOM.addClass( oTick, "tick" );       
@@ -55,7 +56,7 @@ YUI().add("slider-ticks", function ( Y ) {
             
             _onValueChangedSetToNearestTick: function( e )
             {
-                nTicks = (parseInt(this.get( 'ticks' )))-1;
+                var nTicks = (parseInt(this.get( 'ticks' )))-1;
                 this.setValue(Math.round(e.newVal/100*nTicks)*100/nTicks);                
             },
 
