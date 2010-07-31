@@ -32,7 +32,7 @@ YUI().add("slider-ticks", function ( Y ) {
             _onRenderAddTicks: function( e ) 
             {
             sThumbUrl = this.get( 'thumbUrl' );
-            sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.gif" );
+            sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.png" );
             
                 oSlide = Y.Node.getDOMNode( e.parentNode );
                 nTicks =  parseInt( this.get( 'ticks' ) );                     
