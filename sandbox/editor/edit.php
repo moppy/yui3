@@ -112,6 +112,7 @@
 <button id="getHTML">Get HTML</button>
 <button id="setHTML">Set HTML</button>
 <button id="focusEditor">Focus Editor</button>
+<!--button id="showEditor">Show Editor</button-->
 
 <div id="stub">
 </div>
@@ -207,7 +208,7 @@ var yConfig = {
 
 YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'substitute', 'exec-command', 'editor-lists', 'createlink-base', 'editor-bidi', function(Y) {
     //console.log(Y, Y.id);
-
+    
     Y.delegate('click', function(e) {
         e.target.toggleClass('selected');
         var cmd = e.target.get('innerHTML').toLowerCase(),
@@ -364,6 +365,27 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
     //editor.plug(Y.Plugin.EditorTab);
     editor.plug(Y.Plugin.EditorBidi);
 
+    editor.after('frame:paste', function(e) {
+        /*
+        var inst = editor.getInstance();
+        Y.later(100, null, function() {
+            var div = inst.one('p > div');
+            if (div) {
+                div.setAttribute('style', '');
+            }
+        });
+        */
+        /*
+        console.log(e);
+        e.frameEvent.preventDefault();
+        if (e.clipboardData.data) {
+            console.log(e.clipboardData.data);
+            editor.execCommand('paste');
+            //editor.execCommand('insertandfocus', e.clipboardData.data);
+        }
+        */
+    });
+
     editor.on('frame:keydown', function(e) {
         if (e.keyCode === 13) {
             if (e.ctrlKey) {
@@ -388,6 +410,9 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
             }
         });
     });
+    editor.on('frame:focus', function() {console.log("Focus called");});
+    editor.on('frame:blur', function() {console.log("Blur called");});
+    
     /*
     editor.on('frame:keyup', function(e) {
         var inst = this.getInstance(),
@@ -419,6 +444,11 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
     Y.on('click', function(e) {
         editor.focus(true);
     }, '#focusEditor');
+
+    Y.on('click', function(e) {
+        Y.one('#test1').setStyle('display', 'block');
+        editor.render('#test');
+    }, '#showEditor');
 
 });
 

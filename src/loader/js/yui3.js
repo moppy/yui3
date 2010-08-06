@@ -417,6 +417,35 @@ YUI.Env[Y.version].modules = YUI.Env[Y.version].modules || {
         "path": "datatype/datatype-date-format-min.js"
     }, 
     "dd": {
+        "plugins": {
+            "dd-drop-plugin": {
+                "requires": [
+                    "dd-drop"
+                ]
+            }, 
+            "dd-gestures": {
+                "condition": {
+                    "test": function(Y) {
+    return ('ontouchstart' in Y.config.win && !Y.UA.chrome);
+}, 
+                    "trigger": "dd-drag"
+                }, 
+                "requires": [
+                    "dd-drag", 
+                    "event-synthetic", 
+                    "event-move"
+                ]
+            }, 
+            "dd-plugin": {
+                "optional": [
+                    "dd-constrain", 
+                    "dd-proxy"
+                ], 
+                "requires": [
+                    "dd-drag"
+                ]
+            }
+        }, 
         "submodules": {
             "dd-constrain": {
                 "requires": [
@@ -443,38 +472,20 @@ YUI.Env[Y.version].modules = YUI.Env[Y.version].modules || {
                 ]
             }, 
             "dd-delegate": {
-                "optional": [
-                    "dd-drop-plugin"
-                ], 
                 "requires": [
                     "dd-drag", 
+                    "dd-drop-plugin", 
                     "event-mouseenter"
                 ]
             }, 
             "dd-drag": {
                 "requires": [
-                    "dd-ddm-base", 
-                    "event-synthetic", 
-                    "event-gestures"
+                    "dd-ddm-base"
                 ]
             }, 
             "dd-drop": {
                 "requires": [
                     "dd-ddm-drop"
-                ]
-            }, 
-            "dd-drop-plugin": {
-                "requires": [
-                    "dd-drop"
-                ]
-            }, 
-            "dd-plugin": {
-                "optional": [
-                    "dd-constrain", 
-                    "dd-proxy"
-                ], 
-                "requires": [
-                    "dd-drag"
                 ]
             }, 
             "dd-proxy": {
@@ -691,12 +702,23 @@ YUI.Env[Y.version].modules = YUI.Env[Y.version].modules || {
             "event-base"
         ]
     }, 
+    "event-valuechange": {
+        "requires": [
+            "event-focus", 
+            "event-synthetic"
+        ]
+    }, 
     "history": {
         "plugins": {
             "history-hash-ie": {
                 "condition": {
-                    "trigger": "history-hash", 
-                    "ua": "ie"
+                    "test": function (Y) {
+    var docMode = Y.config.doc.documentMode;
+
+    return Y.UA.ie && (!('onhashchange' in Y.config.win) ||
+            !docMode || docMode < 8);
+}, 
+                    "trigger": "history-hash"
                 }, 
                 "requires": [
                     "history-hash", 
@@ -1136,12 +1158,6 @@ YUI.Env[Y.version].modules = YUI.Env[Y.version].modules || {
             "swf"
         ]
     }, 
-    "value-change": {
-        "requires": [
-            "event-focus", 
-            "event-synthetic"
-        ]
-    }, 
     "widget": {
         "plugins": {
             "widget-child": {
@@ -1238,4 +1254,4 @@ YUI.Env[Y.version].modules = YUI.Env[Y.version].modules || {
         }
     }
 };
-YUI.Env[Y.version].md5 = '9102af0fa0930a570c7686a435b193af';
+YUI.Env[Y.version].md5 = '9831ad3a8846e9881333334843874af1';

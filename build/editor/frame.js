@@ -134,6 +134,45 @@ YUI.add('frame', function(Y) {
             inst = null;
             this._iframe.remove();
         },
+        _DOMPaste: function(e) {
+            var inst = this.getInstance(),
+                data = '', win = inst.config.win;
+
+            if (e._event.originalTarget) {
+                data = e._event.originalTarget;
+            }
+            if (e._event.clipboardData) {
+                data = e._event.clipboardData.getData('Text');
+            }
+            
+            if (win.clipboardData) {
+                data = win.clipboardData.getData('Text');
+                if (data == '') { // Could be empty, or failed
+                    // Verify failure
+                    if (!win.clipboardData.setData('Text', data)) {
+                        data = null;
+                    }
+                }
+            }
+            
+
+            e.frameTarget = e.target;
+            e.frameCurrentTarget = e.currentTarget;
+            e.frameEvent = e;
+            
+            if (data) {
+                e.clipboardData = {
+                    data: data,
+                    getData: function() {
+                        return data;
+                    }
+                };
+            } else {
+                e.clipboardData = null;
+            }
+
+            this.fire('paste', e);
+        },
         /**
         * @private
         * @method _defReadyFn
@@ -142,12 +181,22 @@ YUI.add('frame', function(Y) {
         _defReadyFn: function() {
             var inst = this.getInstance(),
                 fn = Y.bind(this._onDomEvent, this);
-            
-            Y.each(Y.Node.DOM_EVENTS, function(v, k) {
+                
+            inst.Node.DOM_EVENTS.paste = 1;
+
+            Y.each(inst.Node.DOM_EVENTS, function(v, k) {
                 if (v === 1) {
-                    inst.on(k, fn, inst.config.doc);
+                    if (k !== 'focus' && k !== 'blur' && k !== 'paste') {
+                        inst.on(k, fn, inst.config.doc);
+                    }
                 }
             });
+            
+            inst.on('paste', Y.bind(this._DOMPaste, this), inst.one('body'));
+
+            //Adding focus/blur to the window object
+            inst.on('focus', fn, inst.config.win);
+            inst.on('blur', fn, inst.config.win);
             inst._use = inst.use;
             inst.use = Y.bind(this.use, this);
 
@@ -558,7 +607,7 @@ YUI.add('frame', function(Y) {
             */
             use: {
                 writeOnce: true,
-                value: ['substitute', 'node', 'selector-css3']
+                value: ['substitute', 'node', 'node-style', 'selector-css3']
             },
             /**
             * @attribute container
