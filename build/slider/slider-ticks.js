@@ -4,10 +4,12 @@ TickSlider
 version: 1
 */
 
-YUI().add("slider-ticks", function ( Y ) {
+YUI({ debug : true }).add("slider-ticks", function ( Y ) {
  
     // Define a new extension class to calculate values differently
-    function TickSlider() {    
+    function TickSlider() {
+        //attribute for the binding/unbinding
+        this.evtValueChanged = null;
         this.after( "render", this._onRenderAddTicks );
     }
     // Add attribute configuration and prototype to decorate the Slider
@@ -31,9 +33,9 @@ YUI().add("slider-ticks", function ( Y ) {
         prototype: { 
             _onRenderAddTicks: function( e ) 
             {
-            var sThumbUrl = this.get( 'thumbUrl' );
-            sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.php" );
-            
+                var sThumbUrl = this.get( 'thumbUrl' );
+                //png and ie6 issue...
+                sThumbUrl = sThumbUrl.replace(/[^\/]*\..{3,4}$/, "tick.png" );            
                 var oSlide = Y.Node.getDOMNode( e.parentNode );
                 var nTicks =  parseInt( this.get( 'ticks' ) );
                 var nPos;                     
@@ -50,14 +52,59 @@ YUI().add("slider-ticks", function ( Y ) {
                     Y.DOM.addHTML( oTick, oSlide );
                     //each time insert to the parent of the previous tick
                     oSlide = oTick;
-                }                
-                this.after( "valueChange", this._onValueChangedSetToNearestTick);                   
+                }                            
             },
             
-            _onValueChangedSetToNearestTick: function( e )
-            {
-                var nTicks = (parseInt(this.get( 'ticks' )))-1;
-                this.setValue(Math.round(e.newVal/100*nTicks)*100/nTicks);                
+           /**
+            * Override of stub method in SliderBase that is called at the end of
+            * its bindUI stage of render().  Subscribes to internal events to
+            * trigger UI and related state updates.
+            *
+            * @method _bindValueLogic
+            * @protected             
+            */
+            _bindValueLogic: function () {
+                this.evtValueChanged = this.after( "valueChange", this._afterValueChange );
+            },
+           
+            /**
+            * Unbinding the valueChange logic. In combine with the _bindValueLogic() 
+            * can fix 
+            * trigger UI and related state updates.
+            *
+            * @method _unBindValueLogic
+            * @protected             
+            */
+            _unBindValueLogic: function () {
+                this.evtValueChanged.detach();
+            },
+            
+           /**
+            * Returns the nearest tick value to the current value input.  
+            *
+            * @method _nearestTick
+            * @param value { mixed } Value to compute nearest tick
+            * @return { Number } tick's calculated value 
+            * @protected
+            */            
+            _nearestTick: function ( value ) {
+                var nTicks = ( parseInt( this.get( 'ticks' ) ))-1;                                  
+                return ( Math.round( value / 100 * nTicks ) * 100 / nTicks );            
+            },
+            
+            /**
+             * Adjust the thumb to the nearest tick 
+             *
+             * @method _afterValueChange
+             * @param e { EventFacade } The <code>valueChange</code> event.
+             * @protected
+             */            
+            _afterValueChange: function( e )
+            {       
+                //operate nicely inside a sandbox        
+                this._unBindValueLogic();
+                this._setPosition(this._nearestTick(e.newVal));   
+                this._bindValueLogic();                
             },
 
             /**
@@ -71,7 +118,7 @@ YUI().add("slider-ticks", function ( Y ) {
              * @protected
              */            
             _validateTicks: function ( value ) {
-                return parseInt( value )>1 && value < parseInt( this.get( 'length' ) ) / 2 ;
+                return Y.Lang.isNumber( value ) && value > 1 && value < parseInt( this.get( 'length' ) ) / 2 ;                
             }
         }
     }, true);
