@@ -32,22 +32,32 @@ YUI().add("slider-ticks", function ( Y ) {
         /* additional prototype members and methods */          
         prototype: { 
             _onRenderAddTicks: function( e ) 
-            {                
+            {
+                //save this value for later calculations
+                this._calcMax = this.get( 'max') - this.get( 'min');    
+                var length    = parseInt(this.get( 'length' ));
+                var thumbMid = parseInt(this.thumb.getStyle( this._key.dim )) / 2;
+                var nFactor = ( thumbMid / length * 100 );
+                                                 
                 var oSlide = oSlideParent = Y.Node.getDOMNode( e.parentNode );
                 var nTicks =  parseInt( this.get( 'ticks' ) );
                 var nPos, sId, imgLoader, sTickUrl, parsePng;
-                var sBackgroundPosition = (this._key.xyIndex) ? "0% ":"";                                      
+                var sBackgroundPosition = (this._key.xyIndex) ? "0% ":"";                                                      
                 for(i = 0; i < nTicks; i++) {
                     sId = "tick" + i;
                     oTick = Y.DOM.create( "<div id='tick" + i + "' class='yui3-slider-tick-" + this.axis + "'></div>" );                   
                     Y.DOM.addClass( oTick, "tick" );
                     Y.DOM.setStyle( oTick, this._key.dim, this.get( 'length' ) );
+                    
+                    //position from max=100%   
                     nPos  = i * 100 / ( nTicks - 1 );
-                    nPos += ( 5 - i * 10 / ( nTicks - 1) );
-                    Y.DOM.setStyle( oTick, "backgroundPosition", sBackgroundPosition + nPos + "%" );                    
+                    nPos += ( nFactor - i * nFactor * 2   / ( nTicks - 1) );                   
+                    Y.DOM.setStyle( oTick, "backgroundPosition", sBackgroundPosition + nPos + "%" );                                        
                     Y.DOM.setStyle( oTick, "backgroundRepeat", "no-repeat" );
+                    
                     Y.DOM.addHTML( Y.DOM.elementByAxis( oSlide, "parentNode" ), oTick );   
                     Y.DOM.addHTML( oTick, oSlide );
+                    
                     //each time insert to the parent of the previous tick
                     oSlide = oTick;
                 }
@@ -100,8 +110,11 @@ YUI().add("slider-ticks", function ( Y ) {
             * @protected
             */            
             _nearestTick: function ( value ) {
-                var nTicks = ( parseInt( this.get( 'ticks' ) ))-1;                                  
-                return ( Math.round( value / 100 * nTicks ) * 100 / nTicks );            
+                var nTicks = (this.get( 'ticks' ) - 1);                                  
+                var tick = {};
+                tick.tick   = Math.round(value / this._calcMax * nTicks);
+                tick.newVal = tick.tick * this._calcMax / nTicks;               
+                return tick;
             },
             
             /**
@@ -115,7 +128,9 @@ YUI().add("slider-ticks", function ( Y ) {
             {       
                 //operate nicely inside a sandbox        
                 this._unBindValueLogic();
-                this._setPosition(this._nearestTick(e.newVal));   
+                tick = this._nearestTick(e.newVal);
+                this._setPosition(tick.newVal);                  
+                this.fire( 'tickChange', tick ); 
                 this._bindValueLogic();                
             },
 
@@ -129,13 +144,12 @@ YUI().add("slider-ticks", function ( Y ) {
             */
             _pngParse: function(nodeList)
             {
-                var imgUrl, isPng, imgLoader, id;
+                var imgUrl, isPng, imgLoader;
                 for(var i = 0; i < nodeList.length; i++){
                     imgUrl = Y.DOM.getStyle(nodeList[i], "backgroundImage");
-                    id = nodeList[i].id;
                     isPng = /\.png\)?$/.test(imgUrl);
                     //exploiting imgLoader for pngStyling                                        
-                    imgLoader = new Y.ImgLoadImgObj ({domId: id, bgUrl: imgUrl, isPng: isPng});
+                    imgLoader = new Y.ImgLoadImgObj ({bgUrl: imgUrl, isPng: isPng});
                     node = Y.one(nodeList[i]);
                     if (isPng)
                     {
