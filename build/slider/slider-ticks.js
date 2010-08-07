@@ -39,7 +39,7 @@ YUI().add("slider-ticks", function ( Y ) {
                 var thumbMid = parseInt(this.thumb.getStyle( this._key.dim )) / 2;
                 var nFactor = ( thumbMid / length * 100 );
                                                  
-                var oSlide = oSlideParent = Y.Node.getDOMNode( e.parentNode );
+                var oSlide = Y.Node.getDOMNode( e.parentNode );
                 var nTicks =  parseInt( this.get( 'ticks' ) );
                 var nPos, sId, imgLoader, sTickUrl, parsePng;
                 var sBackgroundPosition = (this._key.xyIndex) ? "0% ":"";                                                      
