@@ -2,6 +2,8 @@ ImageLoader - Release Notes
 
 Development Master
 
+3.2.1
+ - Moved the png check to the attribute isPng
 3.2.0
  - No change
 
