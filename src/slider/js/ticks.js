@@ -1,5 +1,3 @@
-YUI.add('slider-ticks', function(Y) {
-
 /*
 Copyright (c) 2010, Motty Katan All rights reserved.
 TickSlider
@@ -136,6 +134,7 @@ Y.mix( TickSlider, {
             this._unBindValueLogic();
             var tick = this._nearestTick(e.newVal);
             this._setPosition(tick.newVal);
+            Y.log("Current tick: " + tick.tick + ", Rail position: " + tick.newVal, "info", "slider");
             this.fire( 'tickChange', tick ); 
             this._bindValueLogic();                
         },
@@ -169,7 +168,3 @@ Y.TickSlider = Y.Base.build( "slider", Y.SliderBase, [
     
     
      
-
-
-
-}, '@VERSION@' ,{requires:['range-slider']});

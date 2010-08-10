@@ -87,6 +87,7 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
             defaultFn: this._defThumbMoveFn,
             queuable : true
         } );
+        this.isParsePng = new Y.ImgLoadImgObj ({isPng: true}).get( "isPng" );
     },
 
     /**
@@ -96,7 +97,8 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
      * @protected
      */
     renderUI : function () {
-        var contentBox = this.get( 'contentBox' );
+        var contentBox = this.get( 'contentBox' ),
+            nodeList;
 
         /**
          * The Node instance of the Slider's rail element.  Do not write to
@@ -124,6 +126,12 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 
         // <span class="yui3-slider-x">
         contentBox.addClass( this.getClassName( this.axis ) );
+        if ( this.isParsePng )
+        {
+            //parse all images inside the slider
+            nodeList = Y.Selector.query("*", Y.Node.getDOMNode( this._parentNode ), false, true);
+            this._pngParse( nodeList );       
+        }
     },
 
     /**
@@ -178,6 +186,46 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
                 thumbShadowUrl  : imageUrl,
                 thumbImageUrl   : imageUrl
             } ) );
+    },
+
+   /**
+    * Utility function, replace png transparency images with  
+    * thier equivalent gif. 
+    * TODO: should think about different file rules: trans.png and not
+    * all png files.    
+    *           
+    * @param {String} png image url              
+    * @method _getGifImage
+    * @protected             
+    */    
+    _getGifImage: function(imgUrl){    
+        var pattern = /\.png\"?\)?$/i;
+        return imgUrl.replace(pattern, ".gif");
+    },
+
+   /**
+    * Parse nodes that may have png images and support 
+    * png for browsers which have problem with png transparency
+    *           
+    * @param {Array} array of {HTMLElement}              
+    * @method _pngParse
+    * @protected             
+    */
+    _pngParse: function(nodeList) {
+        var imgUrl, node, i;
+        for(i = 0; i < nodeList.length; i++){
+            node = Y.one(nodeList[i]);            
+            if  (nodeList[i].tagName.toLowerCase()=="img"){
+                    imgUrl = node.getAttribute("src");
+                    //replace png set with gif set
+                    node.setAttribute("src", this._getGifImage(imgUrl) );            
+            }
+            else {
+                    imgUrl = node.getStyle("backgroundImage");
+                    //replace png set with gif set
+                    node.setStyle("backgroundImage", this._getGifImage(imgUrl) );            
+            }
+        }
     },
 
     /**
@@ -556,7 +604,9 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 });
 
 
-}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain']});
+
+}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain', 'imageloader']});
+
 YUI.add('slider-value-range', function(Y) {
 
 /**
@@ -951,7 +1001,9 @@ Y.SliderValueRange = Y.mix( SliderValueRange, {
 }, true );
 
 
+
 }, '@VERSION@' ,{requires:['slider-base']});
+
 YUI.add('clickable-rail', function(Y) {
 
 /**
@@ -1151,7 +1203,9 @@ Y.ClickableRail = Y.mix( ClickableRail, {
 }, true );
 
 
+
 }, '@VERSION@' ,{requires:['slider-base']});
+
 YUI.add('range-slider', function(Y) {
 
 /**
@@ -1178,8 +1232,187 @@ Y.Slider = Y.Base.build( 'slider', Y.SliderBase,
     [ Y.SliderValueRange, Y.ClickableRail ] );
 
 
+
 }, '@VERSION@' ,{requires:['slider-base', 'clickable-rail', 'slider-value-range']});
 
+YUI.add('slider-ticks', function(Y) {
 
-YUI.add('slider', function(Y){}, '@VERSION@' ,{use:['slider-base', 'slider-value-range', 'clickable-rail', 'range-slider']});
+/*
+Copyright (c) 2010, Motty Katan All rights reserved.
+TickSlider
+version: 1
+*/
+ 
+// Define a new extension class to calculate values differently
+function TickSlider() {
+    //attribute for the binding/unbinding
+    this.evtValueChanged = null;
+    this.after( "render", this._onRenderAddTicks );
+}
+// Add attribute configuration and prototype to decorate the Slider
+Y.mix( TickSlider, {
+
+    ATTRS: {
+        /**
+         * The value associated with the number of ticks on the rail.
+         * Minimum two ticks, one at each end. 
+         * @attribute ticks
+         * @type { Number }
+         * @default 2 
+         */
+        ticks: {
+            value: 2,
+            validator: '_validateTicks'
+        } 
+    },
+    
+    /* additional prototype members and methods */          
+    prototype: { 
+        _onRenderAddTicks: function( e ) {
+            //save this value for later calculations
+            this._calcMax = this.get( 'max') - this.get( 'min');    
+            var length = parseInt(this.get( 'length' ), 10),
+                thumbMid = parseInt(this.thumb.getStyle( this._key.dim ), 10) / 2,
+                nFactor = ( thumbMid / length * 100 ),                
+            //TODO: YUI design problem! why pass e.parentNode if already accessible
+            //using extending? 
+                oSlide = Y.Node.getDOMNode( this._parentNode ),
+                //save it for later use since oSlide is going to be overwritten
+                //inside the loop
+                oSlideParent = oSlide,
+                nTicks =  this.get( 'ticks' ),
+                sBackgroundPosition = (this._key.xyIndex) ? "0% ":"",
+                tickClass = "yui3-slider-tick-" + this.axis,
+                nPos, 
+                sId, 
+                i,
+                oTick,
+                before,
+                nodeList;                
+                                
+            for(i = 0; i < nTicks; i++) {
+                sId = "tick" + i;
+                oTick = Y.DOM.create( "<div id='tick" + i + "' class='" + tickClass + "'></div>" );                   
+                Y.DOM.addClass( oTick, "tick" );
+                Y.DOM.setStyle( oTick, this._key.dim, this.get( 'length' ) );
+                
+                //position from max=100%   
+                nPos  = i * 100 / ( nTicks - 1 );
+                nPos += ( nFactor - i * nFactor * 2   / ( nTicks - 1) );                   
+                Y.DOM.setStyle( oTick, "backgroundPosition", sBackgroundPosition + nPos + "%" );                                                            
+                Y.DOM.setStyle( oTick, "backgroundRepeat", "no-repeat" );
+                before = Y.DOM.elementByAxis( oSlide, "firstChild" );
+                Y.DOM.addHTML( Y.DOM.elementByAxis( oSlide, "firstChild" ), oTick, "before");  
+                Y.DOM.addHTML( oTick, before );
+                
+                //each time insert to the parent of the previous tick
+                oSlide = oTick;
+            }
+            oSlide = null;
+
+            //png support
+            if ( this.isParsePng ) { 
+                //parse all images inside the tick meaning the slider
+                nodeList = Y.Selector.query("." + tickClass, oSlideParent, false, true);
+                //add the current tick itself
+                nodeList[nodeList.length] = oTick;
+                this._pngParse( nodeList );
+            }
+            oTick = null;
+        },
+        
+       /**
+        * Override of stub method in SliderBase that is called at the end of
+        * its bindUI stage of render().  Subscribes to internal events to
+        * trigger UI and related state updates.
+        *
+        * @method _bindValueLogic
+        * @protected             
+        */
+        _bindValueLogic: function () {
+            this.evtValueChanged = this.after( "valueChange", this._afterValueChange );
+        },
+       
+       /**
+        * Unbinding the valueChange logic. In combine with the _bindValueLogic() 
+        * can fix 
+        * trigger UI and related state updates.
+        *
+        * @method _unBindValueLogic
+        * @protected             
+        */
+        _unBindValueLogic: function () {
+            this.evtValueChanged.detach();
+        },
+        
+       /**
+        * Returns the nearest tick value to the current value input.  
+        *
+        * @method _nearestTick
+        * @param value { mixed } Value to compute nearest tick
+        * @return { Number } tick's calculated value 
+        * @protected
+        */            
+        _nearestTick: function ( value ) {
+            var nTicks = (this.get( 'ticks' ) - 1),                                  
+                tick = {};
+            tick.tick   = Math.round(value / this._calcMax * nTicks);
+            tick.newVal = tick.tick * this._calcMax / nTicks;               
+            return tick;
+        },
+        
+        /**
+         * Adjust the thumb to the nearest tick 
+         * @event tickChange
+         * @method _afterValueChange
+         * @param e { EventFacade } The <code>valueChange</code> event.
+         * @protected
+         */            
+        _afterValueChange: function(e) {       
+            //operate nicely inside a sandbox        
+            this._unBindValueLogic();
+            var tick = this._nearestTick(e.newVal);
+            this._setPosition(tick.newVal);
+            Y.log("Current tick: " + tick.tick + ", Rail position: " + tick.newVal, "info", "slider");
+            this.fire( 'tickChange', tick ); 
+            this._bindValueLogic();                
+        },
+
+       
+
+        /**
+         * Validates new values assigned to <code>ticks</code> attribute.  Numbers
+         * are acceptable greater than one and less than a half of length.
+         * Override this to enforce different rules.
+         *
+         * @method _validateTicks
+         * @param value { mixed } Value assigned to <code>ticks</code> attribute.
+         * @return { Boolean } True for valid number.  False otherwise.
+         * @protected
+         */            
+        _validateTicks: function ( value ) {
+            return Y.Lang.isNumber( value ) && value > 1 && value < parseInt( this.get( 'length' ), 10 ) / 2 ;                
+        }
+    }
+}, true);
+
+
+// Combine SliderBase with the new extension class any others to
+// create a new Slider
+Y.TickSlider = Y.Base.build( "slider", Y.SliderBase, [
+    Y.ClickableRail,  // Should also support rail clicks
+    Y.SliderValueRange,        
+    TickSlider      // Use the new value methods and attributes
+] );
+    
+    
+     
+
+
+
+}, '@VERSION@' ,{requires:['range-slider']});
+
+
+
+YUI.add('slider', function(Y){}, '@VERSION@' ,{use:['slider-base', 'slider-value-range', 'clickable-rail', 'range-slider', 'slider-ticks']});
 

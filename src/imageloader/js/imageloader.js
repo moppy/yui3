@@ -462,7 +462,8 @@
 		 * @type Boolean
 		 */
 		isPng: {
-			value: false
+			value: false,
+			validator: '_validateIsPng'
 		},
 
 		/**
@@ -527,6 +528,18 @@
 		},
 
 		/**
+         * Validates whether there is a need for a special treat of a png image  
+         * @method _validateIsPng
+         * @param value { mixed } Value assigned to <code>isPng</code> attribute.
+         * @return { Boolean } True for should parse png.  False otherwise.
+         * @protected
+         */            
+		_validateIsPng: function (value)
+        {
+            return (value && Y.UA.ie && Y.UA.ie <= 6);
+        },
+        
+		/**
 		 * Displays the image; puts the URL into the DOM.
 		 * This method shouldn't be called externally, but is not private in the rare event that it needs to be called immediately.
 		 * @method fetch
@@ -558,7 +571,7 @@
 			// apply url
 			if (this.get('bgUrl') !== null) {
 				// bg url
-				if (this.get('isPng') && Y.UA.ie && Y.UA.ie <= 6) {
+				if (this.get('isPng')) {			
 					// png for which to apply AlphaImageLoader
 					el.setStyle('filter', 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src="' + this.get('bgUrl') + '", sizingMethod="' + this.get('sizingMethod') + '", enabled="' + this.get('enabled') + '")');
 				}

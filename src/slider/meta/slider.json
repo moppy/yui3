@@ -6,13 +6,15 @@
                 "requires": [
                     "widget", 
                     "dd-constrain", 
-                    "substitute"
+                    "substitute",
+                    "imageloader"
                 ], 
                 "skinnable": true
             },
 
             "slider-value-range": {
-                "requires": [ "slider-base" ]
+                "requires": [ "slider-base" ],
+                "skinnable": false
             },
 
             "clickable-rail": {
@@ -24,6 +26,11 @@
                     "slider-base",
                     "slider-value-range",
                     "clickable-rail"
+                ]
+            },
+            "slider-ticks":{
+                "requires": [
+                    "range-slider"
                 ]
             }
         }

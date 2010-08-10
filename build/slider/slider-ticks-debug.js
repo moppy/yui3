@@ -136,6 +136,7 @@ Y.mix( TickSlider, {
             this._unBindValueLogic();
             var tick = this._nearestTick(e.newVal);
             this._setPosition(tick.newVal);
+            Y.log("Current tick: " + tick.tick + ", Rail position: " + tick.newVal, "info", "slider");
             this.fire( 'tickChange', tick ); 
             this._bindValueLogic();                
         },

@@ -1,10 +1,3 @@
-/*
-Copyright (c) 2010, Yahoo! Inc. All rights reserved.
-Code licensed under the BSD License:
-http://developer.yahoo.com/yui/license.html
-version: 3.1.1
-build: 47
-*/
 YUI.add('imageloader', function(Y) {
 
 /**
@@ -525,29 +518,19 @@ YUI.add('imageloader', function(Y) {
 			 */
 			this._yPos = null;
 		},
-       
-       /**
-        * Validates whether there is a need for a special treat of a png image  
-        * @method _validateIsPng
-        * @param value { mixed } Value assigned to <code>isPng</code> attribute.
-        * @return { Boolean } True for should parse png.  False otherwise.
-        * @protected
-        */            
+
+		/**
+         * Validates whether there is a need for a special treat of a png image  
+         * @method _validateIsPng
+         * @param value { mixed } Value assigned to <code>isPng</code> attribute.
+         * @return { Boolean } True for should parse png.  False otherwise.
+         * @protected
+         */            
 		_validateIsPng: function (value)
         {
             return (value && Y.UA.ie && Y.UA.ie <= 6);
         },
         
-       /**
-        * Adds png style support (currently for IE browsers)
-        * @method addPngStyle
-        * @param {HTMLElement} node. The node to add style for
-        */        
-        addPngStyle: function(node)
-        {
-            node.setStyle('filter', 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src="' + this.get('bgUrl') + '", sizingMethod="' + this.get('sizingMethod') + '", enabled="' + this.get('enabled') + '")');        
-        },
-
 		/**
 		 * Displays the image; puts the URL into the DOM.
 		 * This method shouldn't be called externally, but is not private in the rare event that it needs to be called immediately.
@@ -574,12 +557,13 @@ YUI.add('imageloader', function(Y) {
 				}
 			}
 
+
 			// apply url
 			if (this.get('bgUrl') !== null) {
 				// bg url
-				if (this.get('isPng')) {
+				if (this.get('isPng')) {			
 					// png for which to apply AlphaImageLoader
-					this.addPngStyle(el);
+					el.setStyle('filter', 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src="' + this.get('bgUrl') + '", sizingMethod="' + this.get('sizingMethod') + '", enabled="' + this.get('enabled') + '")');
 				}
 				else {
 					// regular bg image
@@ -638,6 +622,7 @@ YUI.add('imageloader', function(Y) {
 
 
 	Y.extend(Y.ImgLoadImgObj, Y.Base, imgProto);
+
 
 
 
