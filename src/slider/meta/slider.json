@@ -14,7 +14,6 @@
 
             "slider-value-range": {
                 "requires": [ "slider-base" ],
-                "skinnable": false
             },
 
             "clickable-rail": {
@@ -30,7 +29,9 @@
             },
             "slider-ticks":{
                 "requires": [
-                    "range-slider"
+                    "slider-base",
+                    "slider-value-range",
+                    "clickable-rail"
                 ]
             }
         }

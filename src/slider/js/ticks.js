@@ -26,17 +26,29 @@ Y.mix( TickSlider, {
             validator: '_validateTicks'
         } 
     },
-    
+       
     /* additional prototype members and methods */          
-    prototype: { 
+    prototype: {
+    
+        /**
+         * Tick template 
+         * {placeholder}s are used for template substitution at render time.
+         *
+         * @property TICK_TEMPLATE
+         * @type {String}
+         * @default &lt;span id="{tickId}" class="{tickClass}">&lt;/span>
+         */
+        TICK_TEMPLATE     : '<span id="{tickId}" class="{tickClass}">' +
+                            '</span>',
+                                 
         _onRenderAddTicks: function( e ) {
             //save this value for later calculations
             this._calcMax = this.get( 'max') - this.get( 'min');    
             var length = parseInt(this.get( 'length' ), 10),
                 thumbMid = parseInt(this.thumb.getStyle( this._key.dim ), 10) / 2,
                 nFactor = ( thumbMid / length * 100 ),                
-            //TODO: YUI design problem! why pass e.parentNode if already accessible
-            //using extending? 
+                //TODO: YUI design problem! why pass e.parentNode if already accessible
+                //using extending? 
                 oSlide = Y.Node.getDOMNode( this._parentNode ),
                 //save it for later use since oSlide is going to be overwritten
                 //inside the loop
@@ -45,16 +57,17 @@ Y.mix( TickSlider, {
                 sBackgroundPosition = (this._key.xyIndex) ? "0% ":"",
                 tickClass = "yui3-slider-tick-" + this.axis,
                 nPos, 
-                sId, 
                 i,
                 oTick,
                 before,
                 nodeList;                
                                 
-            for(i = 0; i < nTicks; i++) {
-                sId = "tick" + i;
-                oTick = Y.DOM.create( "<div id='tick" + i + "' class='" + tickClass + "'></div>" );                   
-                Y.DOM.addClass( oTick, "tick" );
+            for(i = 0; i < nTicks; i++) {                
+                oTick = Y.DOM.create(
+                            Y.substitute( this.TICK_TEMPLATE, {
+                                tickId      : "tick" + i,
+                                tickClass: tickClass + " tick"
+                         } ) );
                 Y.DOM.setStyle( oTick, this._key.dim, this.get( 'length' ) );
                 
                 //position from max=100%   
@@ -79,7 +92,7 @@ Y.mix( TickSlider, {
                 nodeList[nodeList.length] = oTick;
                 this._pngParse( nodeList );
             }
-            oTick = null;
+            oSlideParent = oTick = null;
         },
         
        /**
@@ -111,7 +124,7 @@ Y.mix( TickSlider, {
         *
         * @method _nearestTick
         * @param value { mixed } Value to compute nearest tick
-        * @return { Number } tick's calculated value 
+        * @return { Object } tick's serial id and calculated value for event info 
         * @protected
         */            
         _nearestTick: function ( value ) {
