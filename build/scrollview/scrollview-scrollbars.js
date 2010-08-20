@@ -8,7 +8,7 @@ YUI.add('scrollview-scrollbars', function(Y) {
 
 var getClassName = Y.ClassNameManager.getClassName,
     _classNames,
-    
+
     NATIVE_TRANSITIONS = Y.Transition.useNative,    
     SCROLLBAR = 'scrollbar',
     SCROLLVIEW = 'scrollview',
@@ -28,13 +28,18 @@ var getClassName = Y.ClassNameManager.getClassName,
     HORIZ_CACHE = "_sbh",
     VERT_CACHE = "_sbv",
 
+    TRANSITION_PROPERTY = "transitionProperty",
+    TRANSFORM = "transform",
+
     TRANSLATE_X = "translateX(",
     TRANSLATE_Y = "translateY(",
+
     SCALE_X = "scaleX(",
     SCALE_Y = "scaleY(",
 
+    PX = "px",
     CLOSE = ")",
-    PX_CLOSE = "px" + CLOSE;
+    PX_CLOSE = PX + CLOSE;
 
 /**
  * ScrollView plugin that adds scroll indicators to ScrollView instances
@@ -68,7 +73,7 @@ _classNames = ScrollbarsPlugin.CLASS_NAMES;
  *
  * @property ScrollViewScrollbars.NAME
  * @type String
- * @default 'scrollbars-plugin'
+ * @default 'pluginScrollViewScrollbars'
  * @static
  */
 ScrollbarsPlugin.NAME = 'pluginScrollViewScrollbars';
@@ -143,7 +148,7 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
         this.afterHostMethod('_uiScrollY', this._update);
         this.afterHostMethod('_uiScrollX', this._update);
         this.afterHostMethod('_uiDimensionsChange', this._hostDimensionsChange);
-        this.afterHostEvent('scrollEnd', this.flash);
+        this.afterHostEvent('scrollEnd', this._hostScrollEnd);
     },
 
     /**
@@ -163,6 +168,18 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
         this._update();
 
         Y.later(500, this, 'flash', true);
+    },
+
+    /**
+     * Handler for the scrollEnd event fired by the host. Default implementation flashes the scrollbar
+     *
+     * @method _hostScrollEnd
+     * @param {Event.Facade} e The event facade.
+     */
+    _hostScrollEnd : function(e) {
+        if (!this._host._flicking) {
+            this.flash();
+        }
     },
 
     /**
@@ -203,6 +220,10 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
             mc = c.item(1),
             lc = c.item(2),
             size = node.getData("isHoriz") ? "offsetWidth" : "offsetHeight";
+
+        node.setStyle(TRANSITION_PROPERTY, TRANSFORM);
+        mc.setStyle(TRANSITION_PROPERTY, TRANSFORM);
+        lc.setStyle(TRANSITION_PROPERTY, TRANSFORM);
 
         node.setData(CHILD_CACHE, {
             fc : fc,
@@ -304,18 +325,27 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
             scrollbarPos = widgetSize - (firstChildSize + lastChildSize) - 1;
         }
 
-        // Position Scrollbar
-        transition = {
-            duration : duration
-        };
+        if (duration !== 0) {
+            // Position Scrollbar
+            transition = {
+                duration : duration
+            };
 
-        if (NATIVE_TRANSITIONS) {
-            transition.transform = translate + scrollbarPos + PX_CLOSE;
+            if (NATIVE_TRANSITIONS) {
+                transition.transform = translate + scrollbarPos + PX_CLOSE;
+            } else {
+                transition[dimOffset] = scrollbarPos + PX;
+            }
+
+            scrollbar.transition(transition);
+
         } else {
-            transition[dimOffset] = scrollbarPos;
+            if (NATIVE_TRANSITIONS) {
+                scrollbar.setStyle(TRANSFORM, translate + scrollbarPos + PX_CLOSE);
+            } else {
+                scrollbar.setStyle(dimOffset, scrollbarPos + PX);
+            }
         }
-
-        scrollbar.transition(transition);
 
         // Resize Scrollbar Middle Child
         if (this[dimCache] !== middleChildSize) {
@@ -323,34 +353,50 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
 
             if (middleChildSize > 0) {
 
-                transition = {
-                    duration : duration             
-                };
-    
-                if(NATIVE_TRANSITIONS) {
-                    transition.transform = scale + middleChildSize + CLOSE;
+                if (duration !== 0) {
+                    transition = {
+                        duration : duration             
+                    };
+
+                    if(NATIVE_TRANSITIONS) {
+                        transition.transform = scale + middleChildSize + CLOSE;
+                    } else {
+                        transition[dim] = middleChildSize + PX;
+                    }
+
+                    middleChild.transition(transition);
                 } else {
-                    transition[dim] = middleChildSize;
+                    if (NATIVE_TRANSITIONS) {
+                        middleChild.setStyle(TRANSFORM, scale + middleChildSize + CLOSE);
+                    } else {
+                        middleChild.setStyle(dim, middleChildSize + PX);
+                    }
                 }
-    
-                middleChild.transition(transition);
     
                 // Position Last Child
                 if (!horiz || !basic) {
-    
-                    transition = {
-                        duration : duration
-                    };
-            
+
                     lastChildPosition = scrollbarSize - lastChildSize;
-            
-                    if (NATIVE_TRANSITIONS) {
-                        transition.transform = translate + lastChildPosition + PX_CLOSE; 
+    
+                    if(duration !== 0) { 
+                        transition = {
+                            duration : duration
+                        };
+                
+                        if (NATIVE_TRANSITIONS) {
+                            transition.transform = translate + lastChildPosition + PX_CLOSE; 
+                        } else {
+                            transition[dimOffset] = lastChildPosition; 
+                        }
+
+                        lastChild.transition(transition);
                     } else {
-                        transition[dimOffset] = lastChildPosition; 
+                        if (NATIVE_TRANSITIONS) {
+                            lastChild.setStyle(TRANSFORM, translate + lastChildPosition + PX_CLOSE); 
+                        } else {
+                            lastChild.setStyle(dimOffset, lastChildPosition + PX); 
+                        }
                     }
-        
-                    lastChild.transition(transition);
                 }
             }
         }
@@ -408,10 +454,10 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
 
     /**
      * Internal hide/show implementation utility method
-     * 
+     *
      * @method _show
-     * @param {Object} show
-     * @param {Object} animated
+     * @param {boolean} show Whether to show or hide the scrollbar 
+     * @param {bolean} animated Whether or not to animate while showing/hide
      * @protected
      */
     _show : function(show, animated) {
@@ -419,16 +465,21 @@ Y.namespace("Plugin").ScrollViewScrollbars = Y.extend(ScrollbarsPlugin, Y.Plugin
         var verticalNode = this.get(VERTICAL_NODE),
             horizontalNode = this.get(HORIZONTAL_NODE),
 
-            transition = {
-                duration : (animated) ? 0.6 : 0,
-                opacity : (show) ? 1 : 0
-            };
+            duration = (animated) ? 0.6 : 0,
+            opacity = (show) ? 1 : 0,
+
+            transition;
 
         this._showing = show;
 
         if (this._flashTimer) {
             this._flashTimer.cancel();
         }
+
+        transition = {
+            duration : duration,
+            opacity : opacity
+        };
 
         if (verticalNode) {
             verticalNode.transition(transition);

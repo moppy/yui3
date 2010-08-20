@@ -18,6 +18,11 @@ var getClassName = Y.ClassNameManager.getClassName,
     FLICK = EV_SCROLL_FLICK,
 
     UI = 'ui',
+    
+    LEFT = "left",
+    TOP = "top",
+    
+    PX = "px",
 
     SCROLL_Y = "scrollY",
     SCROLL_X = "scrollX",
@@ -100,13 +105,11 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      * TranstionEnd event handler
      *
      * @method _transitionEnded
+     * @param {Event.Facade} e The event facade
      * @private
      */
-    _transitionEnded: function() {
-        if (!this._transitionsHack) {
-            this._transitionsHack = true;
-            this.fire(EV_SCROLL_END);
-        }
+    _transitionEnded: function(e) {
+        this.fire(EV_SCROLL_END);
     },
 
     /**
@@ -121,8 +124,6 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             flick = this.get(FLICK); 
 
         this._bb.on('gesturemovestart', Y.bind(this._onGestureMoveStart, this));
-
-        cb.on('transition:end', Y.bind(this._transitionEnded, this), false);
 
         // TODO: Fires way to often when using non-native transitions, due to property change
         if (NATIVE_TRANSITIONS) {
@@ -168,7 +169,8 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             ySet = (y !== null),
             xMove = (xSet) ? x * -1 : 0,
             yMove = (ySet) ? y * -1 : 0,
-            transition;
+            transition,
+            callback = this._transEndCallback;
 
         duration = duration || 0;
         easing = easing || ScrollView.EASING;
@@ -181,21 +183,35 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             this.set(SCROLL_Y, y, { src: UI });
         }
 
-        transition = {
-            easing : easing,
-            duration : duration/1000
-        };
+        if (duration !== 0) {
+            
+            transition = {
+                easing : easing,
+                duration : duration/1000
+            };
 
-        if (NATIVE_TRANSITIONS) {
-            transition.transform = 'translate('+ xMove +'px,'+ yMove +'px)';
+            if (NATIVE_TRANSITIONS) {
+                transition.transform = 'translate('+ xMove +'px,'+ yMove +'px)';
+            } else {
+                if (xSet) { transition.left = xMove + PX; }
+                if (ySet) { transition.top = yMove + PX; }
+            }
+
+
+            if (!callback) {
+                callback = this._transEndCallback = Y.bind(this._transitionEnded, this);
+            }
+
+            cb.transition(transition, callback);
+
         } else {
-            if (xSet) { transition.left = xMove + "px"; }
-            if (ySet) { transition.top = yMove + "px"; }
+            if (NATIVE_TRANSITIONS) {
+                cb.setStyle('transform', 'translate3D('+ xMove +'px,'+ yMove +'px, 0px)');
+            } else {
+                if (xSet) { cb.setStyle(LEFT, xMove + PX); }
+                if (ySet) { cb.setStyle(TOP, yMove + PX); }
+            }
         }
-
-
-        this._transitionsHack = false;
-        cb.transition(transition);
     },
 
     /**
@@ -223,7 +239,31 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
         this._moveStartClientY = e.clientY;
         this._moveStartClientX = e.clientX;
 
+        /**
+         * Internal state, defines whether or not the scrollview is currently being dragged
+         * 
+         * @property _isDragging
+         * @type boolean
+         * @protected
+         */
         this._isDragging = false;
+        
+        /**
+         * Internal state, defines whether or not the scrollview is currently animating a flick
+         * 
+         * @property _flicking
+         * @type boolean
+         * @protected
+         */
+        this._flicking = false;
+        
+        /**
+         * Internal state, defines whether or not the scrollview needs to snap to a boundary edge
+         * 
+         * @property _snapToEdge
+         * @type boolean
+         * @protected
+         */
         this._snapToEdge = false;
     },    
     
@@ -274,12 +314,27 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
         this._moveEvt.detach();
         this._moveEndEvt.detach();
 
+        /**
+         * Internal state, defines whether or not the scrollview has been scrolled half it's width/height
+         * 
+         * @property _scrolledHalfway
+         * @type boolean
+         * @protected
+         */
         this._scrolledHalfway = false;
         this._snapToEdge = false;
         this._isDragging = false;
 
         if(this._scrollsHorizontal && Math.abs(distance) > (this.get('width')/2)) {
             this._scrolledHalfway = true;
+            
+            /**
+             * Internal state, defines whether or not the scrollview has been scrolled in the forward (distance > 0), or backward (distance < 0) direction
+             * 
+             * @property _scrolledForward
+             * @type boolean
+             * @protected
+             */
             this._scrolledForward = distance > 0;
         }
 
@@ -325,10 +380,10 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
-     * after listener for changes to the scrollY attr
+     * After listener for changes to the scrollY attribute
      *
      * @method _afterScrollYChange
-     * @param e {Event.Facade} The event
+     * @param e {Event.Facade} The event facade
      * @protected
      */
     _afterScrollYChange : function(e) {
@@ -338,7 +393,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
-     * Update the UI when the scrollY attr changes
+     * Update the UI when the scrollY attribute changes
      *
      * @method _uiScrollY
      * @param val {Number} The scrollY value
@@ -354,10 +409,10 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
-     * after listener for changes to the scrollX attr
+     * After listener for changes to the scrollX attribute
      *
      * @method _afterScrollXChange
-     * @param e {Event.Facade} The event
+     * @param e {Event.Facade} The event facade
      * @protected
      */
     _afterScrollXChange : function(e) {
@@ -365,9 +420,9 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             this._uiScrollX(e.newVal, e.duration, e.easing);
         }
     },
-    
+
     /**
-     * Update the UI when the scrollX attr changes
+     * Update the UI when the scrollX attribute changes
      *
      * @method _uiScrollX
      * @param val {Number} The scrollX value
@@ -383,10 +438,10 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
     
     /**
-     * after listener for the height attribute
+     * After listener for the height attribute
      *
      * @method _afterHeightChange
-     * @param e {Event.Facade} The event
+     * @param e {Event.Facade} The event facade
      * @protected
      */
     _afterHeightChange: function() {
@@ -394,10 +449,10 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
     
     /**
-     * after listener for the width attribute
+     * After listener for the width attribute
      *
-     * @method _afterHeightChange
-     * @param e {Event.Facade} The event
+     * @method _afterWidthChange
+     * @param e {Event.Facade} The event facade
      * @protected
      */
     _afterWidthChange: function() {
@@ -405,7 +460,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
     
     /**
-     * This method gets invoked whenever the height or width attrs change,
+     * This method gets invoked whenever the height or width attributes change,
      * allowing us to determine which scrolling axes need to be enabled.
      *
      * @method _uiDimensionsChange
@@ -422,7 +477,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             scrollHeight = bb.get('scrollHeight'),
             scrollWidth = bb.get('scrollWidth');
 
-        if(height && scrollHeight > height) {
+        if(height && scrollHeight > height) {            
             this._scrollsVertical = true;
             this._maxScrollY = scrollHeight - height;
             this._minScrollY = 0;
@@ -437,6 +492,70 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             this._scrollWidth = scrollWidth;
             bb.addClass(ScrollView.CLASS_NAMES.horizontal);
         }
+        
+        /**
+         * Internal state, defines whether or not the scrollview can scroll vertically 
+         * 
+         * @property _scrollsVertical
+         * @type boolean
+         * @protected
+         */
+        
+        /**
+         * Internal state, defines the maximum amount that the scrollview can be scrolled along the Y axis 
+         * 
+         * @property _maxScrollY
+         * @type number
+         * @protected
+         */
+
+        /**
+         * Internal state, defines the minimum amount that the scrollview can be scrolled along the Y axis 
+         * 
+         * @property _minScrollY
+         * @type number
+         * @protected
+         */
+
+        /**
+         * Internal state, cached scrollHeight, for performance 
+         * 
+         * @property _scrollHeight
+         * @type number
+         * @protected
+         */
+
+        /**
+         * Internal state, defines whether or not the scrollview can scroll horizontally 
+         * 
+         * @property _scrollsHorizontal
+         * @type boolean
+         * @protected
+         */
+        
+        /**
+         * Internal state, defines the maximum amount that the scrollview can be scrolled along the X axis 
+         * 
+         * @property _maxScrollX
+         * @type number
+         * @protected
+         */
+
+        /**
+         * Internal state, defines the minimum amount that the scrollview can be scrolled along the X axis 
+         * 
+         * @property _minScrollX
+         * @type number
+         * @protected
+         */
+
+        /**
+         * Internal state, cached scrollWidth, for performance 
+         * 
+         * @property _scrollWidth
+         * @type number
+         * @protected
+         */
     },
 
     /**
@@ -449,12 +568,22 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      */
     _flick: function(e) {
         var flick = e.flick;
-        
+
+        /**
+         * Internal state, currently calculated velocity from the flick 
+         * 
+         * @property _currentVelocity
+         * @type number
+         * @protected
+         */
         this._currentVelocity = flick.velocity;
         this._flicking = true;
 
         this._decelCached = this.get('deceleration');
         this._bounceCached = this.get('bounce');
+
+        this._pastYEdge = false;
+        this._pastXEdge = false;
 
         this._flickFrame();
 
@@ -496,7 +625,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
 
         if(Math.abs(this._currentVelocity).toFixed(4) <= 0.015) {
             this._flicking = false;
-            this._killTimer(!(this._exceededYBoundary || this._exceededXBoundary));
+            this._killTimer(!(this._pastYEdge || this._pastXEdge));
 
             if(scrollsVertical) {
                 if(newY < minY) {
@@ -523,7 +652,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
 
         if (scrollsVertical) {
             if (newY < minY || newY > maxY) {
-                this._exceededYBoundary = true;
+                this._pastYEdge = true;
                 this._currentVelocity *= bounce;
             }
 
@@ -532,7 +661,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
 
         if (scrollsHorizontal) {
             if (newX < minX || newX > maxX) {
-                this._exceededXBoundary = true;
+                this._pastXEdge = true;
                 this._currentVelocity *= bounce;
             }
 
@@ -549,7 +678,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      *
      * @method _killTimer
      * @param fireEvent {Boolean} If true, fire the scrollEnd event
-     * @private
+     * @protected
      */
     _killTimer: function(fireEvent) {
         if(this._flickTimer) {
@@ -563,10 +692,14 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
+     * The scrollX, scrollY setter implementation
+     * 
      * @method _setScroll
      * @private
      * @param {Number} val
      * @param {String} dim
+     * 
+     * @return {Number} The constrained value, if it exceeds min/max range
      */
     _setScroll : function(val, dim) {
         var bouncing = this._cachedBounce || this.get(BOUNCE),
@@ -589,10 +722,11 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
-     * Setter for the scrollX ATTR
+     * Setter for the scrollX attribute
      *
      * @method _setScrollX
      * @param val {Number} The new scrollX value
+     * @return {Number} The normalized value
      * @protected
      */    
     _setScrollX: function(val) {
@@ -604,6 +738,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      *
      * @method _setScrollY
      * @param val {Number} The new scrollY value
+     * @return {Number} The normalized value 
      * @protected
      */
     _setScrollY: function(val) {

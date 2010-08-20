@@ -30,8 +30,8 @@ if (typeof YUI != 'undefined') {
     var YUI = function() {
         var i     = 0, 
             Y     = this, 
-            a     = arguments, 
-            l     = a.length, 
+            args  = arguments, 
+            l     = args.length, 
             gconf = (typeof YUI_config !== 'undefined') && YUI_config;
 
         if (!(Y instanceof YUI)) {
@@ -50,7 +50,7 @@ if (typeof YUI != 'undefined') {
 
         if (l) {
             for (; i<l; i++) {
-                Y.applyConfig(a[i]);
+                Y.applyConfig(args[i]);
             }
 
             Y._setup();
@@ -101,12 +101,11 @@ if (typeof YUI != 'undefined') {
                             }
                         },
         getLoader = function(Y, o) {
-            // var loader = YUI.Env.loaders[Y.config._sig];
             var loader = Y.Env._loader;
             if (loader) {
                 loader.ignoreRegistered = false;
                 loader.onEnd            = null;
-                loader.attaching        = null;
+                // loader.attaching        = null;
                 loader.data             = null;
                 loader.required         = [];
                 loader.loadType         = null;
@@ -542,19 +541,18 @@ proto = {
             star,
             ret      = true,
             fetchCSS = config.fetchCSS,
-            process  = function(names) {
+            process  = function(names, skip) {
 
                 if (!names.length) {
                     return;
                 }
 
-                // var collection = YArray(names);
-                var collection = names;
-
-                YArray.each(collection, function(name) {
+                YArray.each(names, function(name) {
 
                     // add this module to full list of things to attach
-                    r.push(name);
+                    if (!skip) {
+                        r.push(name);
+                    }
 
                     // only attach a module once
                     if (used[name]) {
@@ -576,13 +574,12 @@ proto = {
                         }
                     }
 
-
                     if (req && req.length) { // make sure requirements are attached
                         process(req);
                     }
 
                     if (use && use.length) { // make sure we grab the submodule dependencies too
-                        process(use);
+                        process(use, 1);
                     }
                 });
             },
@@ -613,6 +610,7 @@ proto = {
                 if (data) {
                     origMissing = missing.concat();
                     missing = [];
+                    r = [];
                     process(data);
                     redo = missing.length;
                     if (redo) {
@@ -676,12 +674,14 @@ proto = {
             args = Y.Object.keys(mods);
         }
 
-        // Y.log('before loader requirements: ' + args + ', ' + r, 'info', 'yui');
+        // Y.log('before loader requirements: ' + args, 'info', 'yui');
         
         // use loader to expand dependencies and sort the 
         // requirements if it is available.
         if (boot && !star && Y.Loader && args.length) {
-            // loader = new Y.Loader(config);
+
+            // Y.log('checking dependences with loader', 'info', 'yui');
+
             loader = getLoader(Y);
             loader.require(args);
             loader.ignoreRegistered = true;
@@ -692,14 +692,14 @@ proto = {
             // YUI.Env.loaders[Y.config._sig] = loader;
         }
 
-        // Y.log('after loader requirements: ' + args + ', ' + r, 'info', 'yui');
+        // Y.log('after loader requirements: ' + args, 'info', 'yui');
 
         // process each requirement and any additional requirements 
         // the module metadata specifies
         process(args);
 
-        Y.log('requires: ' + args + ', ' + r, 'info', 'yui');
-        // console.log(args);
+        // Y.log('args: ' + args , 'info', 'yui');
+        // Y.log('requires: ' + r, 'info', 'yui');
         len = missing.length;
 
         if (len) {
@@ -708,7 +708,7 @@ proto = {
             Y.log('Modules missing: ' + missing + ', ' + missing.length, 'info', 'yui');
         }
 
-            // console.log(Y._rls(args));
+        // console.log(Y._rls(args));
 
         // dynamic load
         if (boot && len && Y.Loader) {
@@ -719,7 +719,7 @@ proto = {
             loader = getLoader(Y);
             loader.onEnd = handleLoader;
             loader.context = Y;
-            loader.attaching = args;
+            // loader.attaching = args;
             loader.data = args;
             loader.require((fetchCSS) ? missing : args);
             loader.insert(null, (fetchCSS) ? null : 'js');
@@ -766,7 +766,7 @@ Y.log('Fetching loader: ' + Y.id + ", " + config.base + config.loaderPath, 'info
 Y.log('This instance is not provisioned to fetch missing modules: ' + missing, 'log', 'yui');
             }
             Y.log('Attaching available dependencies.', 'info', 'yui');
-            ret = Y._attach(r);
+            ret = Y._attach(args);
             if (ret) {
                 handleLoader();
             }
@@ -3398,6 +3398,96 @@ Y.Get = function() {
 
 
 }, '@VERSION@' );
+YUI.add('features', function(Y) {
+
+var tests = {};
+
+Y.mix(Y.namespace("Features"), {
+
+    tests: tests,
+
+    add: function(cat, name, o) {
+        tests[cat] = tests[cat] || {};
+        tests[cat][name] = o;
+    },
+
+    all: function(cat, args) {
+        var cat_o   = tests[cat],
+            // results = {};
+            result = '';
+        if (cat_o) {
+            Y.Object.each(cat_o, function(v, k) {
+                // results[k] = Y.Features.test(cat, k, args);
+                result += k + ':' + (Y.Features.test(cat, k, args) ? 1 : 0) + ';';
+            });
+        }
+
+        return result;
+    },
+
+    test: function(cat, name, args) {
+
+        var result, ua, test,
+            cat_o   = tests[cat],
+            feature = cat_o && cat_o[name];
+
+        if (!feature) {
+            Y.log('Feature test ' + cat + ', ' + name + ' not found');
+        } else {
+
+            result = feature.result;
+
+            if (Y.Lang.isUndefined(result)) {
+
+                ua = feature.ua;
+                if (ua) {
+                    result = (Y.UA[ua]);
+                }
+
+                test = feature.test;
+                if (test && ((!ua) || result)) {
+                    result = test.apply(Y, args);
+                }
+
+                feature.result = result;
+            }
+        }
+
+        return result;
+    }
+});
+
+// Y.Features.add("load", "1", {});
+// Y.Features.test("load", "1");
+// caps=1:1;2:0;3:1;
+
+/* This file is auto-generated by src/loader/meta_join.py */
+var add = Y.Features.add;
+// 0
+add('load', '0', {
+    "trigger": "dom-style", 
+    "ua": "ie"
+});
+// history-hash-ie-test.js
+add('load', '1', {
+    "test": function (Y) {
+    var docMode = Y.config.doc.documentMode;
+
+    return Y.UA.ie && (!('onhashchange' in Y.config.win) ||
+            !docMode || docMode < 8);
+}, 
+    "trigger": "history-hash"
+});
+// dd-gestures-test.js
+add('load', '2', {
+    "test": function(Y) {
+    return ('ontouchstart' in Y.config.win && !Y.UA.chrome);
+}, 
+    "trigger": "dd-drag"
+});
+
+
+}, '@VERSION@' ,{requires:['yui-base']});
 YUI.add('rls', function(Y) {
 
 /**
@@ -3407,20 +3497,21 @@ YUI.add('rls', function(Y) {
  * @since 3.2.0
  */
 Y._rls = function(what) {
+
     var config = Y.config,
 
         // the configuration
         rls = config.rls || {
-            m:    1, // must have
-            v:    Y.version,
-            gv:   config.gallery,
-            env:  1, // must have
-            lang: config.lang,
-            '2in3v':  config['2in3'],
-            '2v': config.yui2,
-            filt: config.filter,
-            filts: config.filters,
-            caps: ''
+            m:       1, // required in the template
+            v:       Y.version,
+            gv:      config.gallery,
+            env:     1, // required in the template
+            lang:    config.lang,
+            '2in3v': config['2in3'],
+            '2v':    config.yui2,
+            filt:    config.filter,
+            filts:   config.filters,
+            tests:   1 // required in the template
         },
 
         // The rls base path
@@ -3441,8 +3532,9 @@ Y._rls = function(what) {
         url;
 
     // update the request
-    rls.m = what;
-    rls.env = Y.Object.keys(YUI.Env.mods);
+    rls.m     = what;
+    rls.env   = Y.Object.keys(YUI.Env.mods);
+    rls.tests = Y.Features.all('load', [Y]);
 
     url = Y.Lang.sub(rls_base + rls_tmpl, rls);
 
@@ -3455,7 +3547,7 @@ Y._rls = function(what) {
 
 
 
-}, '@VERSION@' ,{requires:['yui-base','get']});
+}, '@VERSION@' ,{requires:['yui-base','get','features']});
 YUI.add('intl-base', function(Y) {
 
 /** 
@@ -3777,5 +3869,5 @@ Y.throttle = throttle;
 }, '@VERSION@' ,{requires:['yui-base']});
 
 
-YUI.add('yui', function(Y){}, '@VERSION@' ,{use:['yui-base','get','rls','intl-base','yui-log','yui-later','yui-throttle']});
+YUI.add('yui', function(Y){}, '@VERSION@' ,{use:['yui-base','get','features','rls','intl-base','yui-log','yui-later','yui-throttle']});
 
