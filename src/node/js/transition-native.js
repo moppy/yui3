@@ -151,6 +151,10 @@ Transition.prototype = {
                 dur = (typeof transition.duration !== 'undefined') ? transition.duration :
                         anim._duration;
 
+                if (!dur) { // make async and fire events
+                    dur = .0001;
+                }
+
                 duration += anim._prepDur(dur) + ',';
                 easing += (transition.easing || anim._easing) + ',';
 
@@ -165,14 +169,16 @@ Transition.prototype = {
 
         if (!anim._hasEndEvent) {
             node.on(TRANSITION_END, this._onNativeEnd, this);
+            anim._hasEndEvent = true;
+
         }
 
-        if (anim._totalDuration) { // only fire when duration > 0 (per spec)
+        //if (anim._totalDuration) { // only fire when duration > 0 (per spec)
             anim._node.fire(START, {
                 type: START,
                 config: anim._config 
             });
-        }
+        //}
 
         setTimeout(function() { // allow any style init to occur (setStyle, etc)
             style.cssText += transitionText + duration + easing + cssText;
@@ -184,8 +190,6 @@ Transition.prototype = {
         var event = e._event,
             anim = this,
             node = anim._node;
-
-        anim._hasEndEvent = true;
 
         node.fire(PROPERTY_END, {
             type: PROPERTY_END,
