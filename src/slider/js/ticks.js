@@ -131,7 +131,7 @@ Y.mix( TickSlider, {
             var nTicks = (this.get( 'ticks' ) - 1),                                  
                 tick = {};
             tick.tick   = Math.round(value / this._calcMax * nTicks);
-            tick.newVal = tick.tick * this._calcMax / nTicks;               
+            tick.newVal = tick.tick * this._calcMax / nTicks;
             return tick;
         },
         

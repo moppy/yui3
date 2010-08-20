@@ -196,11 +196,10 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
     * @method _getGifImage
     * @protected             
     */    
-    _getGifImage: function(imgUrl){    
-        var pattern = /\.png\"?\)?$/i;
-        return imgUrl.replace(pattern, ".gif");
-    },
-
+    _getGifImage: function(imgUrl){   
+        var pattern = /\.png(\"?)(\)?)$/i;
+        return imgUrl.replace(pattern, ".gif$1$2");
+    }, 
    /**
     * Parse nodes that may have png images and support 
     * png for browsers which have problem with png transparency
