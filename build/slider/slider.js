@@ -87,7 +87,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
             defaultFn: this._defThumbMoveFn,
             queuable : true
         } );
-        this.isParsePng = new Y.ImgLoadImgObj ({isPng: true}).get( "isPng" );
     },
 
     /**
@@ -126,12 +125,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 
         // <span class="yui3-slider-x">
         contentBox.addClass( this.getClassName( this.axis ) );
-        if ( this.isParsePng )
-        {
-            //parse all images inside the slider
-            nodeList = Y.Selector.query("*", Y.Node.getDOMNode( this._parentNode ), false, true);
-            this._pngParse( nodeList );       
-        }
     },
 
     /**
@@ -186,46 +179,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
                 thumbShadowUrl  : imageUrl,
                 thumbImageUrl   : imageUrl
             } ) );
-    },
-
-   /**
-    * Utility function, replace png transparency images with  
-    * thier equivalent gif. 
-    * TODO: should think about different file rules: trans.png and not
-    * all png files.    
-    *           
-    * @param {String} png image url              
-    * @method _getGifImage
-    * @protected             
-    */    
-    _getGifImage: function(imgUrl){    
-        var pattern = /\.png\"?\)?$/i;
-        return imgUrl.replace(pattern, ".gif");
-    },
-
-   /**
-    * Parse nodes that may have png images and support 
-    * png for browsers which have problem with png transparency
-    *           
-    * @param {Array} array of {HTMLElement}              
-    * @method _pngParse
-    * @protected             
-    */
-    _pngParse: function(nodeList) {
-        var imgUrl, node, i;
-        for(i = 0; i < nodeList.length; i++){
-            node = Y.one(nodeList[i]);            
-            if  (nodeList[i].tagName.toLowerCase()=="img"){
-                    imgUrl = node.getAttribute("src");
-                    //replace png set with gif set
-                    node.setAttribute("src", this._getGifImage(imgUrl) );            
-            }
-            else {
-                    imgUrl = node.getStyle("backgroundImage");
-                    //replace png set with gif set
-                    node.setStyle("backgroundImage", this._getGifImage(imgUrl) );            
-            }
-        }
     },
 
     /**
@@ -603,7 +556,7 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 
 
 
-}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain', 'imageloader']});
+}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain']});
 
 YUI.add('slider-value-range', function(Y) {
 
@@ -1060,7 +1013,7 @@ Y.ClickableRail = Y.mix(ClickableRail, {
             this._dd.addHandle(this.rail);
 
             this.rail.on(this._evtGuid + Y.DD.Drag.START_EVENT,
-                Y.bind(this._onRailMouseDown, this));
+                this._onRailMouseDown, this);
         },
 
         /**
@@ -1238,80 +1191,62 @@ version: 1
  
 // Define a new extension class to calculate values differently
 function TickSlider() {
-    //attribute for the binding/unbinding
-    this.evtValueChanged = null;
-    this.after( "render", this._onRenderAddTicks );
+    TickSlider.superclass.constructor.apply( this, arguments );
 }
-// Add attribute configuration and prototype to decorate the Slider
-Y.mix( TickSlider, {
 
-    ATTRS: {
-        /**
-         * The value associated with the number of ticks on the rail.
-         * Minimum two ticks, one at each end. 
-         * @attribute ticks
-         * @type { Number }
-         * @default 2 
-         */
-        ticks: {
-            value: 2,
-            validator: '_validateTicks'
-        } 
-    },
-    
-    /* additional prototype members and methods */          
-    prototype: { 
-        _onRenderAddTicks: function( e ) {
-            //save this value for later calculations
-            this._calcMax = this.get( 'max') - this.get( 'min');    
+// Combine SliderBase with the new extension class any others to
+// create a new Slider
+Y.TickSlider = Y.extend( TickSlider, Y.Slider, {
+        
+        initializer : function () {
+            /**
+             * The event for the binding/unbinding of the valueChange event. Do not write to
+             * this property.
+             *
+             * @property evtValueChanged
+             * @type {Object}
+             */        
+            this.evtValueChanged = null;        
+        },           
+                            
+       /**
+        * Create the Ticks structure for the Slider. using SliderBase method  
+        * originaly a stub method of Widget.
+        * @method renderUI
+        * @protected
+        */
+        renderUI: function () {
+            Y.TickSlider.superclass.renderUI.call(this, arguments);                                  
             var length = parseInt(this.get( 'length' ), 10),
                 thumbMid = parseInt(this.thumb.getStyle( this._key.dim ), 10) / 2,
-                nFactor = ( thumbMid / length * 100 ),                
-            //TODO: YUI design problem! why pass e.parentNode if already accessible
-            //using extending? 
-                oSlide = Y.Node.getDOMNode( this._parentNode ),
-                //save it for later use since oSlide is going to be overwritten
-                //inside the loop
-                oSlideParent = oSlide,
-                nTicks =  this.get( 'ticks' ),
+                nFactor = (thumbMid / length * 100),                
+                nTicks =  this.get('ticks'),
                 sBackgroundPosition = (this._key.xyIndex) ? "0% ":"",
-                tickClass = "yui3-slider-tick-" + this.axis,
                 nPos, 
-                sId, 
                 i,
                 oTick,
                 before,
-                nodeList;                
-                                
+                oSlide = Y.Node.getDOMNode(this.get( 'contentBox' ));                
             for(i = 0; i < nTicks; i++) {
-                sId = "tick" + i;
-                oTick = Y.DOM.create( "<div id='tick" + i + "' class='" + tickClass + "'></div>" );                   
-                Y.DOM.addClass( oTick, "tick" );
-                Y.DOM.setStyle( oTick, this._key.dim, this.get( 'length' ) );
+                oTick = Y.DOM.create(
+                            Y.substitute( this.TICK_TEMPLATE, {
+                                tickId      : "tick" + i,
+                                tickClass: this.getClassName( 'tick', this.axis)
+                         } ) );
+                Y.DOM.setStyle(oTick, this._key.dim, this.get( 'length' ));
                 
                 //position from max=100%   
-                nPos  = i * 100 / ( nTicks - 1 );
-                nPos += ( nFactor - i * nFactor * 2   / ( nTicks - 1) );                   
-                Y.DOM.setStyle( oTick, "backgroundPosition", sBackgroundPosition + nPos + "%" );                                                            
-                Y.DOM.setStyle( oTick, "backgroundRepeat", "no-repeat" );
+                nPos  = i * 100 / (nTicks - 1);
+                nPos += (nFactor - i * nFactor * 2   / ( nTicks - 1));
+                
+                Y.DOM.setStyle(oTick, "backgroundPosition", sBackgroundPosition + nPos + "%");                                                            
+                Y.DOM.setStyle(oTick, "backgroundRepeat", "no-repeat");                
                 before = Y.DOM.elementByAxis( oSlide, "firstChild" );
                 Y.DOM.addHTML( Y.DOM.elementByAxis( oSlide, "firstChild" ), oTick, "before");  
-                Y.DOM.addHTML( oTick, before );
+                Y.DOM.addHTML( oTick, before );                                
                 
-                //each time insert to the parent of the previous tick
-                oSlide = oTick;
+                oSlide = oTick; 
             }
-            oSlide = null;
-
-            //png support
-            if ( this.isParsePng ) { 
-                //parse all images inside the tick meaning the slider
-                nodeList = Y.Selector.query("." + tickClass, oSlideParent, false, true);
-                //add the current tick itself
-                nodeList[nodeList.length] = oTick;
-                this._pngParse( nodeList );
-            }
-            oTick = null;
         },
         
        /**
@@ -1343,14 +1278,15 @@ Y.mix( TickSlider, {
         *
         * @method _nearestTick
         * @param value { mixed } Value to compute nearest tick
-        * @return { Number } tick's calculated value 
+        * @return { Object } tick's serial id and calculated value for event info 
         * @protected
         */            
         _nearestTick: function ( value ) {
             var nTicks = (this.get( 'ticks' ) - 1),                                  
-                tick = {};
-            tick.tick   = Math.round(value / this._calcMax * nTicks);
-            tick.newVal = tick.tick * this._calcMax / nTicks;               
+                tick = {},
+                calcMax = this.get( 'max') - this.get( 'min');
+            tick.tick   = Math.round(value / calcMax * nTicks);
+            tick.newVal = tick.tick * calcMax / nTicks;
             return tick;
         },
         
@@ -1384,21 +1320,57 @@ Y.mix( TickSlider, {
          */            
         _validateTicks: function ( value ) {
             return Y.Lang.isNumber( value ) && value > 1 && value < parseInt( this.get( 'length' ), 10 ) / 2 ;                
+        },
+        
+        /**
+         * Tick template 
+         * {placeholder}s are used for template substitution at render time.
+         *
+         * @property TICK_TEMPLATE
+         * @type {String}
+         * @default &lt;span id="{tickId}" class="{tickClass}">&lt;/span>
+         */
+        TICK_TEMPLATE     : '<span id="{tickId}" class="{tickClass}">' +
+                            '</span>'               
+}, {
+    // Y.TickSlider static properties
+
+    /**
+     * The identity of the widget.
+     *
+     * @property SliderBase.NAME
+     * @type String
+     * @default 'sliderBase'
+     * @readOnly
+     * @protected
+     * @static
+     */
+    NAME : 'slider',
+
+    /**
+     * Static property used to define the default attribute configuration of
+     * the Widget.
+     *
+     * @property SliderBase.ATTRS
+     * @type {Object}
+     * @protected
+     * @static
+     */
+    ATTRS : {
+
+        /**
+         * The value associated with the number of ticks on the rail.
+         * Minimum two ticks, one at each end. 
+         * @attribute ticks
+         * @type { Number }
+         * @default 2 
+         */
+        ticks: {
+            value: 2,
+            validator: '_validateTicks'
         }
-    }
-}, true);
-
-
-// Combine SliderBase with the new extension class any others to
-// create a new Slider
-Y.TickSlider = Y.Base.build( "slider", Y.SliderBase, [
-    Y.ClickableRail,  // Should also support rail clicks
-    Y.SliderValueRange,        
-    TickSlider      // Use the new value methods and attributes
-] );
-    
-    
-     
+    } 
+});
 
 
 

@@ -60,7 +60,7 @@ Y.ClickableRail = Y.mix(ClickableRail, {
             this._dd.addHandle(this.rail);
 
             this.rail.on(this._evtGuid + Y.DD.Drag.START_EVENT,
-                Y.bind(this._onRailMouseDown, this));
+                this._onRailMouseDown, this);
         },
 
         /**
@@ -194,6 +194,7 @@ Y.ClickableRail = Y.mix(ClickableRail, {
     }
 
 }, true);
+
 
 
 }, '@VERSION@' ,{requires:['slider-base']});

@@ -44,6 +44,7 @@ var L = Y.Lang,
     ID = "id",
     RENDER = "render",
     RENDERED = "rendered",
+    PNG_ALTERNATIVE = "pngAlternative",
     DESTROYED = "destroyed",
     STRINGS = "strings",
     DIV = "<div></div>",
@@ -100,7 +101,7 @@ function Widget(config) {
     this._cssPrefix = this.constructor.CSS_PREFIX || _getClassName(this.constructor.NAME.toLowerCase());
 
     Widget.superclass.constructor.apply(this, arguments);
-
+    
     var render = this.get(RENDER), parentNode;
     if (render) {
         // Render could be a node or boolean
@@ -171,6 +172,21 @@ ATTRS[ID] = {
 ATTRS[RENDERED] = {
     value:FALSE,
     readOnly: TRUE
+};
+
+/**
+ * Flag indicating whether or not this Widget
+ * should apply png images replacements to gif when in need
+ * inside the render lifecycle phase. (this is one solution to 
+ * png transparency browser's support).
+ * @attribute pngAlternative
+ * @readOnly
+ * @default false
+ * @type boolean
+ */
+ATTRS[PNG_ALTERNATIVE] = {
+    value:FALSE,
+    writeOnce: TRUE    
 };
 
 /**
@@ -431,6 +447,20 @@ Y.extend(Widget, Y.Base, {
         if (this._applyParser) {
             this._applyParser(config);
         }
+        /**
+         * Property that indicates whether or not there is a need
+         * to parse all images and replace them from png to gif.
+         *
+         * @property _isParsePng
+         * @type {Boolean}
+         * @protected
+         */                
+        this._isParsePng = this.get(PNG_ALTERNATIVE);
+        if (this._isParsePng) {
+            // use the ImgLoaderImgObj to check whether a png transparency 
+            // replacement is needed
+            this._isParsePng =  new Y.ImgLoadImgObj ({isPng: true}).get( "isPng" );
+        }        
     },
 
     /**
@@ -560,6 +590,10 @@ Y.extend(Widget, Y.Base, {
     renderer: function() {
         this._renderUI();
         this.renderUI();
+        
+        if (this._isParsePng){
+            this._pngParse();
+        }
 
         this._bindUI();
         this.bindUI();
@@ -567,6 +601,49 @@ Y.extend(Widget, Y.Base, {
         this._syncUI();
         this.syncUI();
     },
+    
+   /**
+    * Utility function, replace png transparency images with  
+    * thier equivalent gif. 
+    * TODO: should think about different file rules: trans.png and not
+    * all png files.    
+    *           
+    * @param {String} png image url              
+    * @method _getGifImage
+    * @protected             
+    */    
+    _getGifImage: function(imgUrl){   
+        var pattern = /\.png(\"?)(\)?)$/i;
+        return imgUrl.replace(pattern, ".gif$1$2");
+    }, 
+   /**
+    * Parse nodes that may have png images and support 
+    * png for browsers which have problem with png transparency
+    *                        
+    * @method _pngParse
+    * @protected             
+    */
+    _pngParse: function() {
+        var imgUrl, 
+            node,
+            nodeList = Y.Selector.query("*", Y.Node.getDOMNode(this.get(CONTENT_BOX)), false, true), 
+            i;
+       
+        for(i = 0; i < nodeList.length; i++){
+            node = Y.one(nodeList[i]);            
+            if  (nodeList[i].tagName.toLowerCase()=="img"){
+                    imgUrl = node.getAttribute("src");
+                    //replace png set with gif set
+                    node.setAttribute("src", this._getGifImage(imgUrl) );            
+            }
+            else {
+                    imgUrl = node.getStyle("backgroundImage");
+                    //replace png set with gif set
+                    node.setStyle("backgroundImage", this._getGifImage(imgUrl) );            
+            }
+        }
+    },
+    
 
     /**
      * Configures/Sets up listeners to bind Widget State to UI/DOM
@@ -1328,6 +1405,7 @@ Y.extend(Widget, Y.Base, {
 });
 
 Y.Widget = Widget;
+
 
 
 }, '@VERSION@' ,{requires:['attribute', 'event-focus', 'base-base', 'base-pluginhost', 'node-base', 'node-style', 'node-event-delegate', 'classnamemanager']});

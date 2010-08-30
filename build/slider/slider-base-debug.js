@@ -87,7 +87,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
             defaultFn: this._defThumbMoveFn,
             queuable : true
         } );
-        this.isParsePng = new Y.ImgLoadImgObj ({isPng: true}).get( "isPng" );
     },
 
     /**
@@ -126,12 +125,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 
         // <span class="yui3-slider-x">
         contentBox.addClass( this.getClassName( this.axis ) );
-        if ( this.isParsePng )
-        {
-            //parse all images inside the slider
-            nodeList = Y.Selector.query("*", Y.Node.getDOMNode( this._parentNode ), false, true);
-            this._pngParse( nodeList );       
-        }
     },
 
     /**
@@ -186,46 +179,6 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
                 thumbShadowUrl  : imageUrl,
                 thumbImageUrl   : imageUrl
             } ) );
-    },
-
-   /**
-    * Utility function, replace png transparency images with  
-    * thier equivalent gif. 
-    * TODO: should think about different file rules: trans.png and not
-    * all png files.    
-    *           
-    * @param {String} png image url              
-    * @method _getGifImage
-    * @protected             
-    */    
-    _getGifImage: function(imgUrl){    
-        var pattern = /\.png\"?\)?$/i;
-        return imgUrl.replace(pattern, ".gif");
-    },
-
-   /**
-    * Parse nodes that may have png images and support 
-    * png for browsers which have problem with png transparency
-    *           
-    * @param {Array} array of {HTMLElement}              
-    * @method _pngParse
-    * @protected             
-    */
-    _pngParse: function(nodeList) {
-        var imgUrl, node, i;
-        for(i = 0; i < nodeList.length; i++){
-            node = Y.one(nodeList[i]);            
-            if  (nodeList[i].tagName.toLowerCase()=="img"){
-                    imgUrl = node.getAttribute("src");
-                    //replace png set with gif set
-                    node.setAttribute("src", this._getGifImage(imgUrl) );            
-            }
-            else {
-                    imgUrl = node.getStyle("backgroundImage");
-                    //replace png set with gif set
-                    node.setStyle("backgroundImage", this._getGifImage(imgUrl) );            
-            }
-        }
     },
 
     /**
@@ -605,4 +558,4 @@ Y.SliderBase = Y.extend( SliderBase, Y.Widget, {
 
 
 
-}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain', 'imageloader']});
+}, '@VERSION@' ,{requires:['widget', 'substitute', 'dd-constrain']});
