@@ -655,7 +655,7 @@ YUI.add('dd-ddm-drop', function(Y) {
                         if (drop && drop.shim) {
                             if ((dMode == this.INTERSECT) && this._noShim) {
                                 r = ((aRegion) ? aRegion : this.activeDrag.get('node'));
-                                return drop.get('node').intersect(r).inRegion;
+                                return drop.get('node').intersect(r, drop.region).inRegion;
                             } else {
                                 if (this._noShim) {
                                     node = drop.get('node');
@@ -2257,7 +2257,6 @@ YUI.add('dd-proxy', function(Y) {
 
             delete c._yuid;
             c.setAttribute('id', Y.guid());
-
             c.setStyle('position', 'absolute');
             n.get('parentNode').appendChild(c);
             host.set(DRAG_NODE, c);
@@ -3229,7 +3228,7 @@ YUI.add('dd-scroll', function(Y) {
 
 
 
-}, '@VERSION@' ,{skinnable:false, optional:['dd-proxy'], requires:['dd-drag']});
+}, '@VERSION@' ,{optional:['dd-proxy'], requires:['dd-drag'], skinnable:false});
 YUI.add('dd-drop', function(Y) {
 
 
@@ -3861,7 +3860,7 @@ YUI.add('dd-delegate', function(Y) {
         _delMouseDown: function(e) {
             var tar = e.currentTarget,
                 dd = this.dd;
-
+            
             if (tar.test(this.get(NODES)) && !tar.test(this.get('invalid'))) {
                 this._shimState = Y.DD.DDM._noShim;
                 Y.DD.DDM._noShim = true;
@@ -3873,6 +3872,7 @@ YUI.add('dd-delegate', function(Y) {
                     dd.set('dragNode', tar);
                 }
                 dd._prep();
+                
                 dd.fire('drag:mouseDown', { ev: e });
             }
         },
@@ -3898,7 +3898,7 @@ YUI.add('dd-delegate', function(Y) {
         initializer: function(cfg) {
             this._handles = [];
             //Create a tmp DD instance under the hood.
-            var conf = this.get('dragConfig') || {},
+            var conf = Y.clone(this.get('dragConfig') || {}),
                 cont = this.get(CONT);
 
             conf.node = _tmpNode.cloneNode(true);
@@ -4108,8 +4108,8 @@ YUI.add('dd-delegate', function(Y) {
 
 
 
-}, '@VERSION@' ,{skinnable:false, optional:['dd-drop-plugin'], requires:['dd-drag', 'event-mouseenter']});
+}, '@VERSION@' ,{optional:['dd-drop-plugin'], requires:['dd-drag', 'event-mouseenter'], skinnable:false});
 
 
-YUI.add('dd', function(Y){}, '@VERSION@' ,{skinnable:false, use:['dd-ddm-base', 'dd-ddm', 'dd-ddm-drop', 'dd-drag', 'dd-proxy', 'dd-constrain', 'dd-drop', 'dd-scroll', 'dd-delegate']});
+YUI.add('dd', function(Y){}, '@VERSION@' ,{use:['dd-ddm-base', 'dd-ddm', 'dd-ddm-drop', 'dd-drag', 'dd-proxy', 'dd-constrain', 'dd-drop', 'dd-scroll', 'dd-delegate'], skinnable:false});
 

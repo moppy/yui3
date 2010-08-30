@@ -53,7 +53,7 @@ Y.extend(CategoryAxis, Y.BaseAxis,
 			labels[i] = obj[key];
 		}
         this._indices[key] = arr;
-		this._keys[key] = labels.concat();
+		this.get("keys")[key] = labels.concat();
 		this._data = this._data.concat(labels);
 	},
 
@@ -69,9 +69,29 @@ Y.extend(CategoryAxis, Y.BaseAxis,
 		}
 		return null;
 	},
+
     getTotalMajorUnits: function(majorUnit, len)
     {
         return this._data.length;
+    },
+    
+    getMajorUnitDistance: function(len, uiLen, majorUnit)
+    {
+        var dist;
+        if(majorUnit.determinant === "count")
+        {
+            dist = uiLen/len;
+        }
+        else if(majorUnit.determinant === "distance")
+        {
+            dist = majorUnit.distance;
+        }
+        return dist;
+    },
+   
+    getEdgeOffset: function(ct, l)
+    {
+        return l/ct;
     },
     
     getLabelAtPosition: function(pos, len, format)
@@ -80,7 +100,6 @@ Y.extend(CategoryAxis, Y.BaseAxis,
         i = Math.round(pos/(len/count));
         return this._data[i];
     }
-			
 });
 
 Y.CategoryAxis = CategoryAxis;

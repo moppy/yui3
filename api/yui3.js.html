@@ -477,7 +477,7 @@
             <span class="s2">&quot;dd-gestures&quot;</span><span class="o">:</span> <span class="p">{</span>
                 <span class="s2">&quot;condition&quot;</span><span class="o">:</span> <span class="p">{</span>
                     <span class="s2">&quot;test&quot;</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">Y</span><span class="p">)</span> <span class="p">{</span>
-    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;ontouchstart&#39;</span> <span class="k">in</span> <span class="nx">Y</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">win</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">Y</span><span class="p">.</span><span class="nx">UA</span><span class="p">.</span><span class="nx">chrome</span><span class="p">);</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nx">Y</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">win</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="s1">&#39;ontouchstart&#39;</span> <span class="k">in</span> <span class="nx">Y</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">win</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">Y</span><span class="p">.</span><span class="nx">UA</span><span class="p">.</span><span class="nx">chrome</span><span class="p">));</span>
 <span class="p">},</span> 
                     <span class="s2">&quot;trigger&quot;</span><span class="o">:</span> <span class="s2">&quot;dd-drag&quot;</span>
                 <span class="p">},</span> 
@@ -872,19 +872,17 @@
         <span class="p">}</span>
     <span class="p">},</span> 
     <span class="s2">&quot;jsonp&quot;</span><span class="o">:</span> <span class="p">{</span>
-        <span class="s2">&quot;submodules&quot;</span><span class="o">:</span> <span class="p">{</span>
-            <span class="s2">&quot;jsonp-base&quot;</span><span class="o">:</span> <span class="p">{</span>
-                <span class="s2">&quot;requires&quot;</span><span class="o">:</span> <span class="p">[</span>
-                    <span class="s2">&quot;get&quot;</span><span class="p">,</span> 
-                    <span class="s2">&quot;oop&quot;</span>
-                <span class="p">]</span>
-            <span class="p">},</span> 
+        <span class="s2">&quot;plugins&quot;</span><span class="o">:</span> <span class="p">{</span>
             <span class="s2">&quot;jsonp-url&quot;</span><span class="o">:</span> <span class="p">{</span>
                 <span class="s2">&quot;requires&quot;</span><span class="o">:</span> <span class="p">[</span>
-                    <span class="s2">&quot;jsonp-base&quot;</span>
+                    <span class="s2">&quot;jsonp&quot;</span>
                 <span class="p">]</span>
             <span class="p">}</span>
-        <span class="p">}</span>
+        <span class="p">},</span> 
+        <span class="s2">&quot;requires&quot;</span><span class="o">:</span> <span class="p">[</span>
+            <span class="s2">&quot;get&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;oop&quot;</span>
+        <span class="p">]</span>
     <span class="p">},</span> 
     <span class="s2">&quot;loader&quot;</span><span class="o">:</span> <span class="p">{</span>
         <span class="s2">&quot;requires&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -1182,7 +1180,9 @@
             <span class="s2">&quot;widget&quot;</span><span class="p">,</span> 
             <span class="s2">&quot;widget-parent&quot;</span><span class="p">,</span> 
             <span class="s2">&quot;widget-child&quot;</span><span class="p">,</span> 
-            <span class="s2">&quot;tabview-base&quot;</span>
+            <span class="s2">&quot;tabview-base&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;node-pluginhost&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;node-focusmanager&quot;</span>
         <span class="p">],</span> 
         <span class="s2">&quot;skinnable&quot;</span><span class="o">:</span> <span class="kc">true</span>
     <span class="p">},</span> 
@@ -1300,21 +1300,12 @@
     <span class="p">},</span> 
     <span class="s2">&quot;yql&quot;</span><span class="o">:</span> <span class="p">{</span>
         <span class="s2">&quot;requires&quot;</span><span class="o">:</span> <span class="p">[</span>
-            <span class="s2">&quot;jsonp&quot;</span>
+            <span class="s2">&quot;jsonp&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;jsonp-url&quot;</span>
         <span class="p">]</span>
-    <span class="p">},</span> 
-    <span class="s2">&quot;yui&quot;</span><span class="o">:</span> <span class="p">{</span>
-        <span class="s2">&quot;submodules&quot;</span><span class="o">:</span> <span class="p">{</span>
-            <span class="s2">&quot;get&quot;</span><span class="o">:</span> <span class="p">{},</span> 
-            <span class="s2">&quot;intl-base&quot;</span><span class="o">:</span> <span class="p">{},</span> 
-            <span class="s2">&quot;yui-base&quot;</span><span class="o">:</span> <span class="p">{},</span> 
-            <span class="s2">&quot;yui-later&quot;</span><span class="o">:</span> <span class="p">{},</span> 
-            <span class="s2">&quot;yui-log&quot;</span><span class="o">:</span> <span class="p">{},</span> 
-            <span class="s2">&quot;yui-throttle&quot;</span><span class="o">:</span> <span class="p">{}</span>
-        <span class="p">}</span>
     <span class="p">}</span>
 <span class="p">};</span>
-<span class="nx">YUI</span><span class="p">.</span><span class="nx">Env</span><span class="p">[</span><span class="nx">Y</span><span class="p">.</span><span class="nx">version</span><span class="p">].</span><span class="nx">md5</span> <span class="o">=</span> <span class="s1">&#39;42218b0abf475577189a01bc2403f0d6&#39;</span><span class="p">;</span>
+<span class="nx">YUI</span><span class="p">.</span><span class="nx">Env</span><span class="p">[</span><span class="nx">Y</span><span class="p">.</span><span class="nx">version</span><span class="p">].</span><span class="nx">md5</span> <span class="o">=</span> <span class="s1">&#39;503dbdf98b671df8f52177363e74b6a3&#39;</span><span class="p">;</span>
 </pre></div>
 
                     </div>

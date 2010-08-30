@@ -809,19 +809,17 @@
         }
     }, 
     "jsonp": {
-        "submodules": {
-            "jsonp-base": {
-                "requires": [
-                    "get", 
-                    "oop"
-                ]
-            }, 
+        "plugins": {
             "jsonp-url": {
                 "requires": [
-                    "jsonp-base"
+                    "jsonp"
                 ]
             }
-        }
+        }, 
+        "requires": [
+            "get", 
+            "oop"
+        ]
     }, 
     "loader": {
         "requires": [
@@ -1119,7 +1117,9 @@
             "widget", 
             "widget-parent", 
             "widget-child", 
-            "tabview-base"
+            "tabview-base", 
+            "node-pluginhost", 
+            "node-focusmanager"
         ], 
         "skinnable": true
     }, 
@@ -1237,17 +1237,8 @@
     }, 
     "yql": {
         "requires": [
-            "jsonp"
+            "jsonp", 
+            "jsonp-url"
         ]
-    }, 
-    "yui": {
-        "submodules": {
-            "get": {}, 
-            "intl-base": {}, 
-            "yui-base": {}, 
-            "yui-later": {}, 
-            "yui-log": {}, 
-            "yui-throttle": {}
-        }
     }
 }

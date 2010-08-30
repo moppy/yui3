@@ -9,6 +9,10 @@ function AxisRenderer(config)
 AxisRenderer.NAME = "axisRenderer";
 
 AxisRenderer.ATTRS = {
+        edgeOffset: {
+            value: 0
+        },
+
         /**
          * The graphic in which the axis line and ticks will be rendered.
          */
@@ -253,6 +257,9 @@ AxisRenderer.ATTRS = {
             left: "0px",
             width: "100px",
             height: "100px",
+            label: {
+                rotation: 0
+            },
             hideOverlappingLabelTicks: false
         };
     }

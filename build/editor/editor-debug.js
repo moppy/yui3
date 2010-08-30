@@ -100,11 +100,13 @@ YUI.add('frame', function(Y) {
                 Y.log('document.documentElement was not found, running timer', 'warn', 'frame');
                 var timer = Y.later(1, this, function() {
                     if (res.doc && res.doc.documentElement) {
+                        Y.log('document.documentElement found inside timer', 'info', 'frame');
                         cb(res);
                         timer.cancel();
                     }
                 }, null, true);
             } else {
+                Y.log('document.documentElement found', 'info', 'frame');
                 cb(res);
             }
 
@@ -138,30 +140,23 @@ YUI.add('frame', function(Y) {
         * @param {Event.Facade} e
         */
         _onDomEvent: function(e) {
-            var xy = this._iframe.getXY(),
-                node = this._instance.one('win');
+            var xy, node;
 
-            Y.log('onDOMEvent: ' + e.type, 'info', 'frame');
-            e.frameX = xy[0] + e.pageX - node.get('scrollLeft');
-            e.frameY = xy[1] + e.pageY - node.get('scrollTop');
+            //Y.log('onDOMEvent: ' + e.type, 'info', 'frame');
+            e.frameX = e.frameY = 0;
+
+            if (e.pageX > 0 || e.pageY > 0) {
+                if (e.type.substring(0, 3) !== 'key') {
+                    node = this._instance.one('win');
+                    xy = this._iframe.getXY()
+                    e.frameX = xy[0] + e.pageX - node.get('scrollLeft');
+                    e.frameY = xy[1] + e.pageY - node.get('scrollTop');
+                }
+            }
 
             e.frameTarget = e.target;
             e.frameCurrentTarget = e.currentTarget;
             e.frameEvent = e;
-            
-            
-            //TODO: Not sure why this stopped working!!!
-            this.publish(e.type, {
-                prefix: 'dom',
-                bubbles: true,
-                emitFacade: true,
-                stoppedFn: Y.bind(function(ev, domev) {
-                    ev.halt();
-                }, this, e),
-                preventedFn: Y.bind(function(ev, domev) {
-                    ev.preventDefault();
-                }, this, e)
-            });
 
             this.fire('dom:' + e.type, e);
         },
@@ -178,6 +173,12 @@ YUI.add('frame', function(Y) {
             inst = null;
             this._iframe.remove();
         },
+        /**
+        * @private
+        * @method _DOMPaste
+        * @description Simple pass thru handler for the paste event so we can do content cleanup
+        * @param {Event.Facade} e
+        */
         _DOMPaste: function(e) {
             var inst = this.getInstance(),
                 data = '', win = inst.config.win;
@@ -229,14 +230,19 @@ YUI.add('frame', function(Y) {
 
             inst.Node.DOM_EVENTS.paste = 1;
 
-            Y.each(inst.Node.DOM_EVENTS, function(v, k) {
+            //Y.each(inst.Node.DOM_EVENTS, function(v, k) {
+            Y.each(Frame.DOM_EVENTS, function(v, k) {
                 if (v === 1) {
                     if (k !== 'focus' && k !== 'blur' && k !== 'paste') {
-                        Y.log('Adding DOM event to frame: ' + k, 'info', 'frame');
-                        inst.on(k, fn, inst.config.doc);
+                        //Y.log('Adding DOM event to frame: ' + k, 'info', 'frame');
+                        if (k.substring(0, 3) === 'key') {
+                            inst.on(k, Y.throttle(fn, 200), inst.config.doc);
+                        } else {
+                            inst.on(k, fn, inst.config.doc);
+                        }
                     }
                 }
-            });
+            }, this);
             
             inst.on('paste', Y.bind(this._DOMPaste, this), inst.one('body'));
 
@@ -275,7 +281,7 @@ YUI.add('frame', function(Y) {
                     Y.log('Callback from final internal use call', 'info', 'frame');
                     this.fire('ready');
                 }, this));
-                Y.log('Calling use on internal instance: ', 'info', 'frame');
+                Y.log('Calling use on internal instance: ' + args, 'info', 'frame');
                 inst.use.apply(inst, args);
 
                 inst.one('doc').get('documentElement').addClass('yui-js-enabled');
@@ -446,13 +452,12 @@ YUI.add('frame', function(Y) {
             this._create(Y.bind(function(res) {
                 var inst, timer,
                     cb = Y.bind(function(i) {
-                        Y.log('Internal instance loaded with node', 'info', 'frame');
+                        Y.log('Internal instance loaded with node-base', 'info', 'frame');
                         this._instanceLoaded(i);
                     }, this),
                     args = Y.clone(this.get('use')),
                     config = {
                         debug: false,
-                        bootstrap: false,
                         win: res.win,
                         doc: res.doc
                     },
@@ -461,7 +466,8 @@ YUI.add('frame', function(Y) {
                         config = this._resolveWinDoc(config);
                         inst = YUI(config);
                         inst.log = Y.log; //Dump the instance logs to the parent instance.
-                        Y.log('Creating new internal instance with node only', 'info', 'frame');
+
+                        Y.log('Creating new internal instance with node-base only', 'info', 'frame');
                         try {
                             inst.use('node-base', cb);
                             if (timer) {
@@ -478,9 +484,11 @@ YUI.add('frame', function(Y) {
 
                 args.push(fn);
 
-                Y.log('Adding new modules to main instance', 'info', 'frame');
+                Y.log('Adding new modules to main instance: ' + args, 'info', 'frame');
                 Y.use.apply(Y, args);
+
             }, this));
+
             return this;
         },
         /**
@@ -491,23 +499,16 @@ YUI.add('frame', function(Y) {
         * @chainable        
         */
         focus: function(fn) {
-            if (Y.UA.ie || Y.UA.gecko) {
-                this.getInstance().one('win').focus();
-                if (fn) {
-                    fn();
-                }
-            } else {
-                try {
-                    Y.one('win').focus();
-                    Y.later(100, this, function() {
-                        this.getInstance().one('win').focus();
-                        if (fn) {
-                            fn();
-                        }
-                    });
-                } catch (ferr) {
-                    Y.log('Frame focus failed', 'warn', 'frame');
-                }
+            try {
+                Y.one('win').focus();
+                Y.later(100, this, function() {
+                    this.getInstance().one('win').focus();
+                    if (Y.Lang.isFunction(fn)) {
+                        fn();
+                    }
+                });
+            } catch (ferr) {
+                Y.log('Frame focus failed', 'warn', 'frame');
             }
             return this;
         },
@@ -544,7 +545,28 @@ YUI.add('frame', function(Y) {
             return this;
         }
     }, {
+        
+        /**
+        * @static
+        * @property DOM_EVENTS
+        * @description The DomEvents that the frame automatically attaches and bubbles
+        * @type Object
+        */
+        DOM_EVENTS: {
+            paste: 1,
+            mouseup: 1,
+            mousedown: 1,
+            keyup: 1,
+            keydown: 1,
+            keypress: 1
+        },
 
+        /**
+        * @static
+        * @property DEFAULT_CSS
+        * @description The default css used when creating the document.
+        * @type String
+        */
         DEFAULT_CSS: 'html { height: 95%; } body { padding: 7px; background-color: #fff; font: 13px/1.22 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small; } a, a:visited, a:hover { color: blue !important; text-decoration: underline !important; cursor: text !important; } img { cursor: pointer !important; border: none; }',
         
         //DEFAULT_CSS: 'html { } body { margin: -15px 0 0 -15px; padding: 7px 0 0 15px; display: block; background-color: #fff; font: 13px/1.22 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small; }',
@@ -735,7 +757,7 @@ YUI.add('selection', function(Y) {
         textContent = 'nodeValue';
     }
 
-    Y.Selection = function() {
+    Y.Selection = function(domEvent) {
         var sel, par, ieNode, nodes, rng, i;
 
         if (Y.config.win.getSelection) {
@@ -749,16 +771,22 @@ YUI.add('selection', function(Y) {
             this.isCollapsed = (sel.compareEndPoints('StartToEnd', sel)) ? false : true;
             if (this.isCollapsed) {
                 this.anchorNode = this.focusNode = Y.one(sel.parentElement());
-                
-                par = sel.parentElement();
-                nodes = par.childNodes;
-                rng = sel.duplicate();
 
-                for (i = 0; i < nodes.length; i++) {
-                    //This causes IE to not allow a selection on a doubleclick
-                    //rng.select(nodes[i]);
-                    if (rng.inRange(sel)) {
-                       ieNode = nodes[i]; 
+                if (domEvent) {
+                    ieNode = Y.config.doc.elementFromPoint(domEvent.clientX, domEvent.clientY);
+                }
+                
+                if (!ieNode) {
+                    par = sel.parentElement();
+                    nodes = par.childNodes;
+                    rng = sel.duplicate();
+
+                    for (i = 0; i < nodes.length; i++) {
+                        //This causes IE to not allow a selection on a doubleclick
+                        //rng.select(nodes[i]);
+                        if (rng.inRange(sel)) {
+                           ieNode = nodes[i]; 
+                        }
                     }
                 }
 
@@ -795,7 +823,11 @@ YUI.add('selection', function(Y) {
         if (Y.Lang.isString(sel.text)) {
             this.text = sel.text;
         } else {
-            this.text = sel.toString();
+            if (sel.toString) {
+                this.text = sel.toString();
+            } else {
+                this.text = '';
+            }
         }
     };
     
@@ -812,8 +844,12 @@ YUI.add('selection', function(Y) {
 
         var nodes = Y.all(Y.Selection.ALL),
             baseNodes = Y.all('strong,em'),
+            doc = Y.config.doc,
+            hrs = doc.getElementsByTagName('hr'),
             classNames = {}, cssString = '',
             ls;
+
+            console.log(hrs);
 
         var startTime1 = (new Date()).getTime();
         nodes.each(function(n) {
@@ -851,6 +887,16 @@ YUI.add('selection', function(Y) {
         });
         var endTime1 = (new Date()).getTime();
         Y.log('Node Filter Timer: ' + (endTime1 - startTime1) + 'ms', 'info', 'selection');
+
+        Y.each(hrs, function(hr) {
+            var el = doc.createElement('div');
+                el.setAttribute('style', 'border: 1px solid #ccc; line-height: 0; font-size: 0;margin-top: 5px; margin-bottom: 5px;');
+                el.setAttribute('readonly', true);
+                if (hr.parentNode) {
+                    hr.parentNode.replaceChild(el, hr);
+                }
+
+        });
 
         Y.each(classNames, function(v, k) {
             cssString += k + ' { font-family: ' + v.replace(/"/gi, '') + '; }';
@@ -931,7 +977,7 @@ YUI.add('selection', function(Y) {
                 if (html == '' || html == ' ') {
                     single.set('innerHTML', Y.Selection.CURSOR);
                     sel = new Y.Selection();
-                    sel.focusCursor(true, false);
+                    sel.focusCursor(true, true);
                 }
             }
         } else {
@@ -1126,9 +1172,49 @@ YUI.add('selection', function(Y) {
     */
     Y.Selection.DEFAULT_TAG = 'span';
 
+    /**
+    * The id of the outer cursor wrapper
+    * @static
+    * @property DEFAULT_TAG
+    */
     Y.Selection.CURID = 'yui-cursor';
 
-    Y.Selection.CURSOR = '<span id="' + Y.Selection.CURID + '">&nbsp;</span>';
+    /**
+    * The id used to wrap the inner space of the cursor position
+    * @static
+    * @property CUR_WRAPID
+    */
+    Y.Selection.CUR_WRAPID = 'yui-cursor-wrapper';
+
+    /**
+    * The default HTML used to focus the cursor..
+    * @static
+    * @property CURSOR
+    */
+    Y.Selection.CURSOR = '<span id="' + Y.Selection.CURID + '"><span id="' + Y.Selection.CUR_WRAPID + '">&nbsp;</span></span>';
+
+    /**
+    * Called from Editor keydown to remove the "extra" space before the cursor.
+    * @static
+    * @method cleanCursor
+    */
+    Y.Selection.cleanCursor = function() {
+        var cur = Y.config.doc.getElementById(Y.Selection.CUR_WRAPID);
+        if (cur) {
+            cur.id = '';
+            if (cur.innerHTML == '&nbsp;' || cur.innerHTML == '<br>') {
+                if (cur.parentNode) {
+                    cur.parentNode.removeChild(cur);
+                }
+            }
+        }
+        /*
+        var cur = Y.one('#' + Y.Selection.CUR_WRAPID);
+        if (cur && cur.get('innerHTML') == '&nbsp;') {
+            cur.remove();
+        }
+        */
+    };
 
     Y.Selection.prototype = {
         /**
@@ -1272,7 +1358,9 @@ YUI.add('selection', function(Y) {
             
             if (range.pasteHTML) {
                 newNode = Y.Node.create(html);
-                range.pasteHTML('<span id="rte-insert"></span>');
+                try {
+                    range.pasteHTML('<span id="rte-insert"></span>');
+                } catch (e) {}
                 inHTML = Y.one('#rte-insert');
                 if (inHTML) {
                     inHTML.set('id', '');
@@ -1293,7 +1381,7 @@ YUI.add('selection', function(Y) {
 
                     txt = Y.one(Y.config.doc.createTextNode(inHTML.substr(0, offset)));
                     txt2 = Y.one(Y.config.doc.createTextNode(inHTML.substr(offset)));
-                    
+
                     node.replace(txt, node);
                     newNode = Y.Node.create(html);
                     if (newNode.get('nodeType') === 11) {
@@ -1302,8 +1390,8 @@ YUI.add('selection', function(Y) {
                         newNode = b;
                     }
                     txt.insert(newNode, 'after');
-
-                    if (txt2 && txt2.get('length')) {
+                    //if (txt2 && txt2.get('length')) {
+                    if (txt2) {
                         newNode.insert(cur, 'after');
                         cur.insert(txt2, 'after');
                         this.selectNode(cur, collapse);
@@ -1313,7 +1401,7 @@ YUI.add('selection', function(Y) {
                         node = node.get('parentNode');
                     }
                     newNode = Y.Node.create(html);
-                    node.append(newNode);
+                    node.insert(newNode, 'before');
                 }
             }
             return newNode;
@@ -1482,7 +1570,7 @@ YUI.add('selection', function(Y) {
             if (cur) {
                 if (keep) {
                     cur.removeAttribute('id');
-                    cur.set('innerHTML', '&nbsp;');
+                    cur.set('innerHTML', '<span id="' + Y.Selection.CUR_WRAPID + '">&nbsp;</span>');
                 } else {
                     cur.remove();
                 }
@@ -1720,6 +1808,29 @@ YUI.add('exec-command', function(Y) {
                 * @param {String} val The color value to apply
                 * @return {NodeList} NodeList of the items touched by this command.
                 */
+                forecolor: function(cmd, val) {
+                    var inst = this.getInstance(),
+                        sel = new inst.Selection(), n;
+
+                    if (!Y.UA.ie) {
+                        this._command('styleWithCSS', 'true');
+                    }
+                    if (sel.isCollapsed) {
+                        if (sel.anchorNode && (sel.anchorNode.get('innerHTML') === '&nbsp;')) {
+                            sel.anchorNode.setStyle('color', val);
+                            n = sel.anchorNode;
+                        } else {
+                            n = this.command('inserthtml', '<span style="color: ' + val + '">' + inst.Selection.CURSOR + '</span>');
+                            sel.focusCursor(true, true);
+                        }
+                        return n;
+                    } else {
+                        return this._command(cmd, val);
+                    }
+                    if (!Y.UA.ie) {
+                        this._command('styleWithCSS', false);
+                    }
+                },
                 backcolor: function(cmd, val) {
                     var inst = this.getInstance(),
                         sel = new inst.Selection(), n;
@@ -1734,16 +1845,10 @@ YUI.add('exec-command', function(Y) {
                         if (sel.anchorNode && (sel.anchorNode.get('innerHTML') === '&nbsp;')) {
                             sel.anchorNode.setStyle('backgroundColor', val);
                             n = sel.anchorNode;
-                            n.set('innerHTML', '<br>');
                         } else {
                             n = this.command('inserthtml', '<span style="background-color: ' + val + '">' + inst.Selection.CURSOR + '</span>');
                             sel.focusCursor(true, true);
                         }
-                        /*
-                        n = this.command('inserthtml', '<span style="background-color: ' + val + '"><span>&nbsp;</span>&nbsp;</span>');
-                        inst.Selection.filterBlocks();
-                        sel.selectNode(n.get('firstChild'));
-                        */
                         return n;
                     } else {
                         return this._command(cmd, val);
@@ -1803,8 +1908,10 @@ YUI.add('exec-command', function(Y) {
                     if (sel.isCollapsed) {
                         n = this.command('inserthtml', '<font size="' + val + '">&nbsp;</font>');
                         prev = n.get('previousSibling');
-                        if (prev.get('nodeType') === 3) {
-                            prev.remove();
+                        if (prev && prev.get('nodeType') === 3) {
+                            if (prev.get('length') < 2) {
+                                prev.remove();
+                            }
                         }
                         sel.selectNode(n.get('firstChild'), true, false);
                         return n;
@@ -2003,7 +2110,7 @@ YUI.add('editor-base', function(Y) {
             }).plug(Y.Plugin.ExecCommand);
 
             frame.after('ready', Y.bind(this._afterFrameReady, this));
-            frame.addTarget(this);
+            //frame.addTarget(this);
 
             this.frame = frame;
 
@@ -2043,8 +2150,10 @@ YUI.add('editor-base', function(Y) {
         * @private
         */
         _defNodeChangeFn: function(e) {
+            var startTime = (new Date()).getTime();
             //Y.log('Default nodeChange function: ' + e.changedType, 'info', 'editor');
             var inst = this.getInstance();
+
 
             /*
             * @TODO
@@ -2054,6 +2163,9 @@ YUI.add('editor-base', function(Y) {
             */
             
             switch (e.changedType) {
+                case 'keydown':
+                    inst.Selection.cleanCursor();
+                    break;
                 case 'enter':
                     if (Y.UA.webkit) {
                         //Webkit doesn't support shift+enter as a BR, this fixes that.
@@ -2065,13 +2177,14 @@ YUI.add('editor-base', function(Y) {
                     break;
                 case 'tab':
                     if (!e.changedNode.test('li, li *') && !e.changedEvent.shiftKey) {
-                        Y.log('Overriding TAB key to insert HTML', 'info', 'editor');
+                        e.changedEvent.preventDefault();
+
+                        Y.log('Overriding TAB key to insert HTML: HALTING', 'info', 'editor');
                         var sel = new inst.Selection();
                         sel.setCursor();
                         var cur = sel.getCursor();
                         cur.insert(EditorBase.TABKEY, 'before');
                         sel.focusCursor();
-                        e.changedEvent.preventDefault();
                     }
                     break;
                 case 'enter-up':
@@ -2099,63 +2212,67 @@ YUI.add('editor-base', function(Y) {
                     break;
             }
 
-            var changed = this.getDomPath(e.changedNode),
+            var changed = this.getDomPath(e.changedNode, false),
                 cmds = {}, family, fsize, classes = [],
                 fColor = '', bColor = '';
 
             if (e.commands) {
                 cmds = e.commands;
             }
-
-            changed.each(function(n) {
-                var tag = n.get('tagName').toLowerCase(),
-                    cmd = EditorBase.TAG2CMD[tag],
-                    el = Y.Node.getDOMNode(n);
+            
+            Y.each(changed, function(n) {
+                var el = inst.Node.getDOMNode(n),
+                    tag = el.tagName.toLowerCase(),
+                    cmd = EditorBase.TAG2CMD[tag];
 
                 if (cmd) {
                     cmds[cmd] = 1;
                 }
 
                 //Bold and Italic styles
-                var s = el.style;
-                if (s.fontWeight.toLowerCase() == 'bold') {
+                var s = el.currentStyle || el.style;
+
+                if ((''+s.fontWeight) == 'bold') { //Cast this to a string
                     cmds.bold = 1;
                 }
-                if (s.fontStyle.toLowerCase() == 'italic') {
+                if (s.fontStyle == 'italic') {
                     cmds.italic = 1;
                 }
-                if (s.textDecoration.toLowerCase() == 'underline') {
+                if (s.textDecoration == 'underline') {
                     cmds.underline = 1;
                 }
-                if (s.textDecoration.toLowerCase() == 'line-through') {
+                if (s.textDecoration == 'line-through') {
                     cmds.strikethrough = 1;
                 }
-
-                var family2 = n.getStyle('fontFamily').split(',')[0].toLowerCase();
-                if (family2) {
-                    family = family2;
+                
+                if (s.fontFamily) {
+                    var family2 = s.fontFamily.split(',')[0].toLowerCase();
+                    if (family2) {
+                        family = family2;
+                    }
+                    if (family) {
+                        family = family.replace(/'/g, '').replace(/"/g, '');
+                    }
                 }
-                if (family) {
-                    family = family.replace(/'/g, '').replace(/"/g, '');
-                }
-                fsize = n.getStyle('fontSize');
+                fsize = s.fontSize;
 
-                var cls = n.get('className').split(' ');
+                var cls = el.className.split(' ');
+
                 Y.each(cls, function(v) {
                     if (v !== '' && (v.substr(0, 4) !== 'yui_')) {
                         classes.push(v);
                     }
                 });
 
-                fColor = EditorBase.FILTER_RGB(n.getStyle('color'));
-                var bColor2 = EditorBase.FILTER_RGB(n.getStyle('backgroundColor'));
+                fColor = EditorBase.FILTER_RGB(s.color);
+                var bColor2 = EditorBase.FILTER_RGB(s.backgroundColor);
                 if (bColor2 !== 'transparent') {
                     bColor = bColor2;
                 }
                 
             });
             
-            e.dompath = changed;
+            e.dompath = inst.all(changed);
             e.classNames = classes;
             e.commands = cmds;
 
@@ -2172,17 +2289,48 @@ YUI.add('editor-base', function(Y) {
             if (!e.backgroundColor) {
                 e.backgroundColor = bColor;
             }
+
+            var endTime = (new Date()).getTime();
+            Y.log('_defNodeChangeTimer 2: ' + (endTime - startTime) + 'ms', 'info', 'selection');
         },
         /**
         * Walk the dom tree from this node up to body, returning a reversed array of parents.
         * @method getDomPath
         * @param {Node} node The Node to start from 
         */
-        getDomPath: function(node) {
-            
-			var domPath = [],
+        getDomPath: function(node, nodeList) {
+			var domPath = [], domNode,
                 inst = this.frame.getInstance();
 
+            domNode = inst.Node.getDOMNode(node);
+            //return inst.all(domNode);
+
+            while (domNode !== null) {
+                
+                if ((domNode === inst.config.doc.documentElement) || (domNode === inst.config.doc) || !domNode.tagName) {
+                    domNode = null;
+                    break;
+                }
+                
+                if (!inst.DOM.inDoc(domNode)) {
+                    domNode = null;
+                    break;
+                }
+                
+                //Check to see if we get el.nodeName and nodeType
+                if (domNode.nodeName && domNode.nodeType && (domNode.nodeType == 1)) {
+                    domPath.push(domNode);
+                }
+
+                if (domNode == inst.config.doc.body) {
+                    domNode = null;
+                    break;
+                }
+
+                domNode = domNode.parentNode;
+            }
+
+            /*{{{ Using Node 
             while (node !== null) {
                 if (node.test('html') || node.test('doc') || !node.get('tagName')) {
                     node = null;
@@ -2204,11 +2352,17 @@ YUI.add('editor-base', function(Y) {
 
                 node = node.get('parentNode');
             }
+            }}}*/
+
             if (domPath.length === 0) {
                 domPath[0] = inst.config.doc.body;
             }
-            
-            return inst.all(domPath.reverse());
+
+            if (nodeList) {
+                return inst.all(domPath.reverse());
+            } else {
+                return domPath.reverse();
+            }
 
         },
         /**
@@ -2218,11 +2372,19 @@ YUI.add('editor-base', function(Y) {
         */
         _afterFrameReady: function() {
             var inst = this.frame.getInstance();
+            
             this.frame.on('dom:mouseup', Y.bind(this._onFrameMouseUp, this));
             this.frame.on('dom:mousedown', Y.bind(this._onFrameMouseDown, this));
+            /*
             this.frame.on('dom:keyup', Y.bind(this._onFrameKeyUp, this));
             this.frame.on('dom:keydown', Y.bind(this._onFrameKeyDown, this));
             this.frame.on('dom:keypress', Y.bind(this._onFrameKeyPress, this));
+            */
+            //this.frame.on('dom:keydown', Y.throttle(Y.bind(this._onFrameKeyDown, this), 500));
+            this.frame.on('dom:keydown', Y.bind(this._onFrameKeyDown, this));
+            this.frame.on('dom:keyup', Y.throttle(Y.bind(this._onFrameKeyUp, this), 800));
+            this.frame.on('dom:keypress', Y.throttle(Y.bind(this._onFrameKeyPress, this), 800));
+
             inst.Selection.filter();
             this.fire('ready');
         },
@@ -2232,7 +2394,7 @@ YUI.add('editor-base', function(Y) {
         * @private
         */
         _onFrameMouseUp: function(e) {
-            this.fire('nodeChange', { changedNode: e.frameTarget, changedType: 'mouseup', changedEvent: e  });
+            this.fire('nodeChange', { changedNode: e.frameTarget, changedType: 'mouseup', changedEvent: e.frameEvent  });
         },
         /**
         * Fires nodeChange event
@@ -2240,38 +2402,46 @@ YUI.add('editor-base', function(Y) {
         * @private
         */
         _onFrameMouseDown: function(e) {
-            this.fire('nodeChange', { changedNode: e.frameTarget, changedType: 'mousedown', changedEvent: e  });
+            this.fire('nodeChange', { changedNode: e.frameTarget, changedType: 'mousedown', changedEvent: e.frameEvent  });
         },
         /**
-        * Fires nodeChange event for keyup on specific keys
-        * @method _onFrameKeyUp
+        * Caches a copy of the selection for key events. Only creating the selection on keydown
+        * @property _currentSelection
         * @private
         */
-        _onFrameKeyUp: function(e) {
-            var inst = this.frame.getInstance(),
-                sel = new inst.Selection();
-            
-            if (sel.anchorNode) {
-                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keyup', selection: sel, changedEvent: e  });
-                if (EditorBase.NC_KEYS[e.keyCode]) {
-                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-up', selection: sel, changedEvent: e  });
-                }
-            }
-        },
+        _currentSelection: null,
+        _currentSelectionTimer: null,
+        _currentSelectionClear: null,
         /**
         * Fires nodeChange event
         * @method _onFrameKeyDown
         * @private
         */
         _onFrameKeyDown: function(e) {
-            var inst = this.frame.getInstance(),
-                sel = new inst.Selection();
+            if (!this._currentSelection) {
+                if (this._currentSelectionTimer) {
+                    this._currentSelectionTimer.cancel();
+                }
+                this._currentSelectionTimer = Y.later(850, this, function() {
+                    this._currentSelectionClear = true;
+                });
+                var inst = this.frame.getInstance(),
+                    sel = new inst.Selection(e);
 
-            if (sel.anchorNode) {
-                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keydown', changedEvent: e });
+                this._currentSelection = sel;
+            } else {
+                var sel = this._currentSelection;
+            }
+                var inst = this.frame.getInstance(),
+                    sel = new inst.Selection();
+
+                this._currentSelection = sel;
+
+            if (sel && sel.anchorNode) {
+                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keydown', changedEvent: e.frameEvent });
                 if (EditorBase.NC_KEYS[e.keyCode]) {
-                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode], changedEvent: e });
-                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-down', changedEvent: e });
+                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode], changedEvent: e.frameEvent });
+                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-down', changedEvent: e.frameEvent });
                 }
             }
         },
@@ -2281,14 +2451,31 @@ YUI.add('editor-base', function(Y) {
         * @private
         */
         _onFrameKeyPress: function(e) {
-            var inst = this.frame.getInstance(),
-                sel = new inst.Selection();
+            var sel = this._currentSelection;
 
-            if (sel.anchorNode) {
-                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keypress', changedEvent: e });
+            if (sel && sel.anchorNode) {
+                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keypress', changedEvent: e.frameEvent });
                 if (EditorBase.NC_KEYS[e.keyCode]) {
-                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-press', changedEvent: e });
+                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-press', changedEvent: e.frameEvent });
                 }
+            }
+        },
+        /**
+        * Fires nodeChange event for keyup on specific keys
+        * @method _onFrameKeyUp
+        * @private
+        */
+        _onFrameKeyUp: function(e) {
+            var sel = this._currentSelection;
+
+            if (sel && sel.anchorNode) {
+                this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: 'keyup', selection: sel, changedEvent: e.frameEvent  });
+                if (EditorBase.NC_KEYS[e.keyCode]) {
+                    this.fire('nodeChange', { changedNode: sel.anchorNode, changedType: EditorBase.NC_KEYS[e.keyCode] + '-up', selection: sel, changedEvent: e.frameEvent  });
+                }
+            }
+            if (this._currentSelectionClear) {
+                this._currentSelectionClear = this._currentSelection = null;
             }
         },
         /**
@@ -2598,8 +2785,8 @@ YUI.add('editor-lists', function(Y) {
             newLi, newList, sTab, par, moved = false, tag, focusEnd = false;
 
             if (Y.UA.ie && e.changedType === 'enter') {
-                Y.log('Overriding the Enter Key', 'info', 'editorLists');
                 if (e.changedNode.test(LI + ', ' + LI + ' *')) {
+                    Y.log('Overriding the Enter Key', 'info', 'editorLists');
                     e.changedEvent.halt();
                     e.preventDefault();
                     li = e.changedNode;
@@ -2669,7 +2856,17 @@ YUI.add('editor-lists', function(Y) {
             this.get(HOST).on('nodeChange', Y.bind(this._onNodeChange, this));
         }
     }, {
+        /**
+        * The non element placeholder, used for positioning the cursor and filling empty items
+        * @property REMOVE
+        * @static
+        */
         NON: '<span class="yui-non">&nbsp;</span>',
+        /**
+        * The selector query to get all non elements
+        * @property NONSEL
+        * @static
+        */
         NON_SEL: 'span.yui-non',
         /**
         * The items to removed from a list when a list item is moved, currently removes BR nodes
@@ -2835,9 +3032,11 @@ YUI.add('editor-bidi', function(Y) {
 
             switch (e.changedType) {
                 case 'keydown':
-                    var cont = inst.config.doc.body.innerHTML;
-                    if (cont && cont.toLowerCase() == '<br>') {
-                        this._fixFirstPara();
+                    if (inst.config.doc.childNodes.length < 2) {
+                        var cont = inst.config.doc.body.innerHTML;
+                        if (cont && cont.length < 5 && cont.toLowerCase() == '<br>') {
+                            this._fixFirstPara();
+                        }
                     }
                     break;
                 case 'backspace-up':

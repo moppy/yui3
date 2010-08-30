@@ -115,14 +115,17 @@
 <!--button id="showEditor">Show Editor</button-->
 
 <div id="stub">
+Above the HR
+<hr size="1">
+<?php include('mail.php'); ?>
+</div>
+    <!---div><br></div>
     <ul>
         <li style="font-family: courier new">Item #1</li>
         <li>Item #1</li>
         <li>Item #1</li>
     </ul>
     <p>This is a test..</p>
-</div>
-    <!---div><br></div>
     <div style="font-family: ; font-size: ;"><br>
         <div style="font-family: times new roman, new york, times, serif; font-size: 12pt;">
             <font size="2" face="Tahoma">
@@ -195,8 +198,10 @@ This is some <strong>other</strong> loose test.
 
 <script type="text/javascript">
 var yConfig = {
+    //debug: false,
+    //filter: 'RAW',
     debug: true,
-    filter: 'DEBUG',
+    filter: 'debug',
     allowRollup: false,
     logExclude: {
         'yui': true,
@@ -206,7 +211,6 @@ var yConfig = {
         augment: true,
         get: true,
         loader: true,
-        frame: true,
         Selector: true
     },
     throwFail: true
@@ -360,6 +364,7 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
                 break;
         }
         
+        /*
         if (e.changedType === 'keyup') {
             if (e.changedNode) {
                 var txt = e.changedNode.get('text');
@@ -371,11 +376,12 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
                 });
             }
         }
+        */
         
     });
 
-    editor.plug(Y.Plugin.EditorLists);
-    editor.plug(Y.Plugin.EditorBidi);
+    //editor.plug(Y.Plugin.EditorLists);
+    //editor.plug(Y.Plugin.EditorBidi);
 
     //Disabled for IE testing..
     //editor.plug(Y.Plugin.EditorTab);
@@ -425,8 +431,8 @@ YUI(yConfig).use('node', 'selector-css3', 'base', 'editor-base', 'frame', 'subst
             }
         });
     });
-    editor.on('dom:focus', function() {console.log("Focus called");});
-    editor.on('dom:blur', function() {console.log("Blur called");});
+    //editor.on('dom:focus', function() {console.log("Focus called");});
+    //editor.on('dom:blur', function() {console.log("Blur called");});
     
     /*
     editor.on('dom:keyup', function(e) {

@@ -2,11 +2,11 @@
 <html>
 <head> 
 <style> 
-#demo {
+.demo {
     background:#ccc;
     width:200px;
     height:200px;
-    margin-top:200px;
+    Xpadding-bottom: 100px;
     overflow: hidden;
     position:relative;
     XX-webkit-transition: width .0001s ease-out;
@@ -15,12 +15,14 @@
 <script src="../../../../build/yui/yui.js"></script> 
 
 </head><body> 
-<div id="demo">this is a demo</div> 
+<div class="demo">this is a demo</div> 
+<div class="demo">this is a demo</div> 
 
 <script type="text/javascript"> 
  
-YUI({filter:'raw'}).use('transition', 'selector-native', 'node-style', function(Y) {
-    var node = Y.one('#demo'),
+YUI({filter:'debug'}).use('transition', 'event-custom-complex', 'selector-native', 'node-style', function(Y) {
+    var nodes = Y.all('.demo'),
+        node = nodes.item(0),
         running = false;
 
     node.on('transition:start', function(e) {
@@ -39,27 +41,49 @@ YUI({filter:'raw'}).use('transition', 'selector-native', 'node-style', function(
 
     document.onclick = function() {
         node.transition({
+            easing: 'ease-in',
+            duration: 2,
+            opacity: {
+                value: 0,
+                duration: 3
+            },
+            height: 0,
+            width: 0
+        }, function(e) {
+            Y.log(e);
+            Y.log('callback 1');
+        });
+
+        node.transition({
+            duration: 1,
+            opacity: 0
+        }, function(e) {
+                Y.log(e);
+                Y.log('callback 2');
+        });
+
+/*
+        node.transition({
             duration: 1,
             easing: 'ease-in',
+    //        paddingBottom: 0,
+    //        foo: 0,
             height: 0,
+            width: {
+                value: 0,
+            },
+
             left: {
                 value: '100px',
                 delay: 1
             },
 
             top: '100px',
-            width: {
-                value: 0,
-                delay: 1
-            },
-
-/*
             'borderWidth': {
                 value: 0,
                 delay: 2
             },
 
-*/
             opacity: {
                 easing: 'cubic-bezier(0.75, 0.5, 0.25, 0)',
                 value: 0,
@@ -81,9 +105,20 @@ YUI({filter:'raw'}).use('transition', 'selector-native', 'node-style', function(
             });
         });
 
+        nodes.item(1).transition({
+            duration: 2,
+            height: '100px',
+            width: '100px',
+        }, function(e) {
+            Y.log(e); 
+            console.log('callback 2');
+            nodes.item(1).setStyle('height', 0);
+            nodes.item(1).setStyle('width', 0);
+        });
+    */
     };
 
-    node.setStyle('border', '5px solid green');
+    nodes.setStyle('border', '5px solid green');
 });
  
 </script> 

@@ -460,7 +460,7 @@ Y.Loader = function(o) {
     }
 
 
-    // self._inspectPage();
+    self._inspectPage();
 
     self._internal = false;
 
@@ -555,21 +555,23 @@ Y.Loader.prototype = {
         }
     },
 
-   //  _inspectPage: function() {
-   //      YObject.each(ON_PAGE, function(v, k) {
-   //          if (v.details) {
-   //              var m = this.moduleInfo[k],
-   //                  req = v.details.requires,
-   //                  mr = m && m.requires;
-   //              if (m && !m._inspected && req && mr.length != req.length) {
-   //                  delete m.expanded;
-   //                  m._inspected = true;
-   //              } else {
-   //                  this.addModule(v.details, k);
-   //              }
-   //          }
-   //      }, this);
-   //  },
+   _inspectPage: function() {
+       YObject.each(ON_PAGE, function(v, k) {
+           if (v.details) {
+               var m = this.moduleInfo[k],
+                   req = v.details.requires,
+                   mr = m && m.requires;
+               if (m) {
+                   if (!m._inspected && req && mr.length != req.length) {
+                       delete m.expanded;
+                   }
+               } else {
+                   m = this.addModule(v.details, k);
+               }
+               m._inspected = true;
+           }
+       }, this);
+   },
 
 // returns true if b is not loaded, and is required
 // directly or by means of modules it supersedes.
@@ -644,6 +646,10 @@ Y.Loader.prototype = {
                     } else if (i == 'modules') {
                         // add a hash of module definitions
                         YObject.each(val, self.addModule, self);
+                    } else if (i == 'gallery') {
+                        this.groups.gallery.update(val);
+                    } else if (i == 'yui2' || i == '2in3') {
+                        this.groups.yui2.update(o['2in3'], o.yui2);
                     } else if (i == 'maxURLLength') {
                         self[i] = Math.min(MAX_URL_LENGTH, val);
                     } else {
@@ -971,25 +977,23 @@ Y.Loader.prototype = {
             name = mod.name, cond, go,
             adddef = ON_PAGE[name] && ON_PAGE[name].details,
             d      = [], 
-            r      = mod.requires, 
-            o      = mod.optional, 
+            r, old_mod,
+            o, skinmod, skindef,
             intl   = mod.lang || mod.intl,
             info   = this.moduleInfo,
             hash   = {};
 
         // pattern match leaves module stub that needs to be filled out
         if (mod.temp && adddef) {
+
+            old_mod = mod;
+
+            mod = this.addModule(adddef, name);
+            mod.group = old_mod.group;
+            mod.pkg = old_mod.pkg;
             delete mod.expanded;
-            delete mod.temp;
-            if (adddef.requires) {
-                mod.requires = mod.requires.concat(adddef.requires);
-            }
-            if (adddef.optional) {
-                mod.optional = (mod.optional) ? mod.optional.concat(adddef.optional) : adddef.optional;
-            }
-            // skins?
-            // console.log('temp mod: ' + name + ', ' + mod.requires);
-            // console.log(adddef);
+            // console.log('TEMP MOD: ' + name + ', ' + mod.requires);
+            // console.log(Y.dump(mod));
         }
 
         // if (!this.dirty && mod.expanded && (!mod.langCache || mod.langCache == this.lang)) {
@@ -998,9 +1002,26 @@ Y.Loader.prototype = {
             return mod.expanded;
         }
 
+        r      = mod.requires;
+        o      = mod.optional; 
+
         // Y.log("getRequires: " + name + " (dirty:" + this.dirty + ", expanded:" + mod.expanded + ")");
 
         mod._parsed = true;
+
+        // Create skin modules
+        if (mod.skinnable) {
+            skindef = this.skin.overrides;
+            if (skindef && skindef[name]) {
+                for (i=0; i<skindef[name].length; i++) {
+                    skinmod = this._addSkin(skindef[name][i], name);
+                    d.push(skinmod);
+                }
+            } else {
+                skinmod = this._addSkin(this.skin.defaultSkin, name);
+                d.push(skinmod);
+            }
+        }
 
         for (i=0; i<r.length; i++) {
             // Y.log(name + ' requiring ' + r[i]);
@@ -1161,7 +1182,6 @@ Y.Loader.prototype = {
             }
 
             this._explode();
-            // this._conditions();
             if (this.allowRollup) {
                 this._rollup();
             }
@@ -1204,26 +1224,13 @@ Y.Loader.prototype = {
      * @private
      */
     _setup: function() {
-        var info = this.moduleInfo, name, i, j, m, o, l, smod,
+        var info = this.moduleInfo, name, i, j, m, l, 
             packName;
 
         for (name in info) {
             if (info.hasOwnProperty(name)) {
                 m = info[name];
                 if (m) {
-                    // Create skin modules
-                    if (m.skinnable) {
-                        o = this.skin.overrides;
-                        if (o && o[name]) {
-                            for (i=0; i<o[name].length; i++) {
-                                smod = this._addSkin(o[name][i], name);
-                                m.requires.push(smod);
-                            }
-                        } else {
-                            smod = this._addSkin(this.skin.defaultSkin, name);
-                            m.requires.push(smod);
-                        }
-                    }
 
                     // remove dups
                     m.requires = YObject.keys(YArray.hash(m.requires));

@@ -27,7 +27,17 @@ var DOCUMENT_ELEMENT = 'documentElement',
 
     // TODO: how about thead/tbody/tfoot/tr?
     // TODO: does caption matter?
-    RE_TABLE = /^t(?:able|d|h)$/i;
+    RE_TABLE = /^t(?:able|d|h)$/i,
+
+    SCROLL_NODE;
+
+if (Y.UA.ie) {
+    if (Y.config.doc[COMPAT_MODE] !== 'quirks') {
+        SCROLL_NODE = DOCUMENT_ELEMENT; 
+    } else {
+        SCROLL_NODE = 'body';
+    }
+}
 
 Y.mix(Y_DOM, {
     /**
@@ -114,53 +124,67 @@ Y.mix(Y_DOM, {
                     off1, off2,
                     bLeft, bTop,
                     mode,
-                    doc;
+                    doc,
+                    rootNode;
 
-                if (node) {
+                if (node && node.tagName) {
                     doc = node.ownerDocument;
-                    scrollLeft = Y_DOM.docScrollX(node, doc);
-                    scrollTop = Y_DOM.docScrollY(node, doc);
-                    box = node[GET_BOUNDING_CLIENT_RECT]();
-                    xy = [box.left, box.top];
+                    rootNode = doc[DOCUMENT_ELEMENT];
 
-                        if (Y.UA.ie) {
-                            off1 = 2;
-                            off2 = 2;
-                            mode = doc[COMPAT_MODE];
-                            bLeft = Y_DOM[GET_COMPUTED_STYLE](doc[DOCUMENT_ELEMENT], BORDER_LEFT_WIDTH);
-                            bTop = Y_DOM[GET_COMPUTED_STYLE](doc[DOCUMENT_ELEMENT], BORDER_TOP_WIDTH);
+                    // inline inDoc check for perf
+                    if (rootNode.contains) {
+                        inDoc = rootNode.contains(node); 
+                    } else {
+                        inDoc = Y.DOM.contains(rootNode, node);
+                    }
 
-                            if (Y.UA.ie === 6) {
-                                if (mode !== _BACK_COMPAT) {
-                                    off1 = 0;
-                                    off2 = 0;
+                    if (inDoc) {
+                        scrollLeft = (SCROLL_NODE) ? doc[SCROLL_NODE].scrollLeft : Y_DOM.docScrollX(node, doc);
+                        scrollTop = (SCROLL_NODE) ? doc[SCROLL_NODE].scrollTop : Y_DOM.docScrollY(node, doc);
+                        box = node[GET_BOUNDING_CLIENT_RECT]();
+                        xy = [box.left, box.top];
+
+                            if (Y.UA.ie) {
+                                off1 = 2;
+                                off2 = 2;
+                                mode = doc[COMPAT_MODE];
+                                bLeft = Y_DOM[GET_COMPUTED_STYLE](doc[DOCUMENT_ELEMENT], BORDER_LEFT_WIDTH);
+                                bTop = Y_DOM[GET_COMPUTED_STYLE](doc[DOCUMENT_ELEMENT], BORDER_TOP_WIDTH);
+
+                                if (Y.UA.ie === 6) {
+                                    if (mode !== _BACK_COMPAT) {
+                                        off1 = 0;
+                                        off2 = 0;
+                                    }
                                 }
+                                
+                                if ((mode == _BACK_COMPAT)) {
+                                    if (bLeft !== MEDIUM) {
+                                        off1 = parseInt(bLeft, 10);
+                                    }
+                                    if (bTop !== MEDIUM) {
+                                        off2 = parseInt(bTop, 10);
+                                    }
+                                }
+                                
+                                xy[0] -= off1;
+                                xy[1] -= off2;
+
+                            }
+
+                        if ((scrollTop || scrollLeft)) {
+                            if (!Y.UA.ios) {
+                                xy[0] += scrollLeft;
+                                xy[1] += scrollTop;
                             }
                             
-                            if ((mode == _BACK_COMPAT)) {
-                                if (bLeft !== MEDIUM) {
-                                    off1 = parseInt(bLeft, 10);
-                                }
-                                if (bTop !== MEDIUM) {
-                                    off2 = parseInt(bTop, 10);
-                                }
-                            }
-                            
-                            xy[0] -= off1;
-                            xy[1] -= off2;
-
                         }
-
-                    if ((scrollTop || scrollLeft)) {
-                        if (!Y.UA.ios) {
-                            xy[0] += scrollLeft;
-                            xy[1] += scrollTop;
-                        }
-                        
+                    } else {
+                        xy = Y_DOM._getOffset(node);       
                     }
                 }
                 return xy;                   
-            };
+            }
         } else {
             return function(node) { // manually calculate by crawling up offsetParents
                 //Calculate the Top and Left border sizes (assumes pixels)
@@ -172,7 +196,7 @@ Y.mix(Y_DOM, {
                     scrollLeft;
 
                 if (node) {
-                    //if (Y_DOM.inDoc(node)) {
+                    if (Y_DOM.inDoc(node)) {
                         xy = [node.offsetLeft, node.offsetTop];
                         doc = node.ownerDocument;
                         parentNode = node;
@@ -215,9 +239,9 @@ Y.mix(Y_DOM, {
                             xy[0] += Y_DOM.docScrollX(node, doc);
                             xy[1] += Y_DOM.docScrollY(node, doc);
                         }
-                    //} else {
-                    //    xy = Y_DOM._getOffset(node);
-                    //}
+                    } else {
+                        xy = Y_DOM._getOffset(node);
+                    }
                 }
 
                 return xy;                

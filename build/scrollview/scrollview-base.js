@@ -33,6 +33,14 @@ var getClassName = Y.ClassNameManager.getClassName,
 
     BOUNDING_BOX = "boundingBox",
     CONTENT_BOX = "contentBox",
+    
+    EMPTY = "",
+    ZERO = "0s",
+    
+    OWNER_DOC = "ownerDocument",
+    MOUSE_UP = "mouseup",
+
+    IE = Y.UA.ie,
 
     NATIVE_TRANSITIONS = Y.Transition.useNative;
 
@@ -102,7 +110,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     _uiSizeCB: function() {},
 
     /**
-     * TranstionEnd event handler
+     * Content box transition callback
      *
      * @method _transitionEnded
      * @param {Event.Facade} e The event facade
@@ -121,9 +129,22 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     bindUI: function() {
 
         var cb = this._cb,
+            bb = this._bb,
             flick = this.get(FLICK); 
 
-        this._bb.on('gesturemovestart', Y.bind(this._onGestureMoveStart, this));
+        bb.on('gesturemovestart', Y.bind(this._onGestureMoveStart, this));
+
+        // IE SELECT HACK. See if we can do this non-natively and in the gesture for a future release.
+        if (IE) {
+            this._nativeBody = Y.Node.getDOMNode(Y.one("body", cb.get("ownerDocument")));
+            this._cbDoc = cb.get(OWNER_DOC);
+
+            cb.on("mousedown", function() {
+                this._selectstart = this._nativeBody.onselectstart;
+                this._nativeBody.onselectstart = this._iePreventSelect;
+                this._cbDoc.once(MOUSE_UP, this._ieRestoreSelect, this);
+            }, this);
+        }
 
         // TODO: Fires way to often when using non-native transitions, due to property change
         if (NATIVE_TRANSITIONS) {
@@ -142,7 +163,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             'renderedChange': function() { Y.later(0, this, '_uiDimensionsChange'); } 
         });
     },
-
+    
     /**
      * syncUI implementation
      *
@@ -183,15 +204,24 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
             this.set(SCROLL_Y, y, { src: UI });
         }
 
+        if (NATIVE_TRANSITIONS) {
+            // ANDROID WORKAROUND - try and stop existing transition, before kicking off new one.
+            cb.setStyle(ScrollView._TRANSITION_DURATION, ZERO);
+            cb.setStyle(ScrollView._TRANSITION_PROPERTY, EMPTY);
+
+            // Causes bounce back from 0,0 instead of current translation for bottom/right edge animation
+            // cb.setStyle("WebkitTransform", cb.getComputedStyle("WebkitTransform"));
+        }
+
         if (duration !== 0) {
-            
+
             transition = {
                 easing : easing,
                 duration : duration/1000
             };
 
             if (NATIVE_TRANSITIONS) {
-                transition.transform = 'translate('+ xMove +'px,'+ yMove +'px)';
+                transition.transform = 'translate3D('+ xMove +'px,'+ yMove +'px, 0px)';
             } else {
                 if (xSet) { transition.left = xMove + PX; }
                 if (ySet) { transition.top = yMove + PX; }
@@ -215,6 +245,26 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     },
 
     /**
+     * Native onselectstart handle to prevent selection in IE
+     *
+     * @method _iePreventSelect
+     * @private
+     */
+    _iePreventSelect : function() {
+        return false;
+    },
+
+    /**
+     * Restores native onselectstart handle, backed up to prevent selection in IE
+     *
+     * @method _ieRestoreSelect
+     * @private
+     */
+    _ieRestoreSelect : function() {
+        this._nativeBody.onselectstart = this._selectstart;
+    },
+
+    /**
      * gesturemovestart event handler
      *
      * @method _onGestureMoveStart
@@ -223,11 +273,11 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      */
     _onGestureMoveStart: function(e) {
 
+        var bb = this._bb;
+
         e.preventDefault();
 
         this._killTimer();
-
-        var bb = this._bb;
 
         this._moveEvt = bb.on('gesturemove', Y.bind(this._onGestureMove, this));
         this._moveEndEvt = bb.on('gesturemoveend', Y.bind(this._onGestureMoveEnd, this));
@@ -302,7 +352,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     _onGestureMoveEnd: function(e) {
 
         e.preventDefault();
-        
+
         var minY = this._minScrollY,
             maxY = this._maxScrollY,
             minX = this._minScrollX,
@@ -865,7 +915,7 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
     BOUNCE_RANGE : 150,
 
     /**
-     * The step amount used when animating the flick
+     * The interval used when animating the flick
      *
      * @property ScrollView.FRAME_STEP
      * @type Number
@@ -892,8 +942,23 @@ Y.ScrollView = Y.extend(ScrollView, Y.Widget, {
      * @static
      * @default 'ease-out'
      */
-    SNAP_EASING : 'ease-out'
+    SNAP_EASING : 'ease-out',
 
+    /**
+     * Style property name to use to set transition duration. Currently Webkit specific (WebkitTransitionDuration)
+     * 
+     * @property ScrollView._TRANSITION_DURATION
+     * @private
+     */
+    _TRANSITION_DURATION : "WebkitTransitionDuration",
+
+    /**
+     * Style property name to use to set transition property. Currently, Webkit specific (WebkitTransitionProperty)
+     *
+     * @property ScrollView._TRANSITION_PROPERTY
+     * @private
+     */
+    _TRANSITION_PROPERTY : "WebkitTransitionProperty"
 });
 
 

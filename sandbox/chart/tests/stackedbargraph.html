@@ -42,7 +42,8 @@ table, tr, td
 }
 </style>
 <!-- BEGIN EXAMPLE CODE -->	
-	<script type="text/javascript" src="../../../build/yui/yui.js"></script>
+	<!--script type="text/javascript" src="../../../build/yui/yui.js"></script-->
+    <script src="http://yui.yahooapis.com/3.1.1/build/yui/yui-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/dom/dom-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/node/node-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/graphics/graphics-min.js"></script>
@@ -96,8 +97,7 @@ table, tr, td
                             fill:{
                                 color:"#ff0000"
                             }
-                        },
-                        padding:{top:50, bottom:50}
+                        }
 					};
 
 					// Add revenue graph styles
@@ -115,8 +115,7 @@ table, tr, td
                             fill: {
                                 color:"#eeeeee"
                             }
-                        },
-                        padding:{top:50, bottom:50}
+                        }
 					};
 
                     var taxgraphstyles = {
@@ -134,8 +133,7 @@ table, tr, td
                             fill:{
                                 alpha:0.2
                             }
-                        },
-                        padding:{top:50, bottom:50}
+                        }
                     };
 					
                     var taxareastyles = {
@@ -152,8 +150,7 @@ table, tr, td
                             fill:{
                                 alpha:0.2
                             }
-                        },
-                        padding:{top:50, bottom:50}
+                        }
                     };
 
 					// Create bottom axis styles
@@ -201,11 +198,10 @@ table, tr, td
 						majorUnit:
 						{
 							count:5
-						},
-                        padding:{top:50, bottom:50}
+						}
 					};	
                     var dataProvider = mydata;
-                    var timeaxis = new Y.TimeAxis({dataProvider:dataProvider});
+                    var timeaxis = new Y.CategoryAxis({dataProvider:dataProvider});
 					timeaxis.addKey("day");
                     
                     var numericaxis = new Y.StackedAxis({dataProvider:dataProvider});

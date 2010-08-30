@@ -19,7 +19,7 @@
         textContent = 'nodeValue';
     }
 
-    Y.Selection = function() {
+    Y.Selection = function(domEvent) {
         var sel, par, ieNode, nodes, rng, i;
 
         if (Y.config.win.getSelection) {
@@ -33,16 +33,22 @@
             this.isCollapsed = (sel.compareEndPoints('StartToEnd', sel)) ? false : true;
             if (this.isCollapsed) {
                 this.anchorNode = this.focusNode = Y.one(sel.parentElement());
-                
-                par = sel.parentElement();
-                nodes = par.childNodes;
-                rng = sel.duplicate();
 
-                for (i = 0; i < nodes.length; i++) {
-                    //This causes IE to not allow a selection on a doubleclick
-                    //rng.select(nodes[i]);
-                    if (rng.inRange(sel)) {
-                       ieNode = nodes[i]; 
+                if (domEvent) {
+                    ieNode = Y.config.doc.elementFromPoint(domEvent.clientX, domEvent.clientY);
+                }
+                
+                if (!ieNode) {
+                    par = sel.parentElement();
+                    nodes = par.childNodes;
+                    rng = sel.duplicate();
+
+                    for (i = 0; i < nodes.length; i++) {
+                        //This causes IE to not allow a selection on a doubleclick
+                        //rng.select(nodes[i]);
+                        if (rng.inRange(sel)) {
+                           ieNode = nodes[i]; 
+                        }
                     }
                 }
 
@@ -79,7 +85,11 @@
         if (Y.Lang.isString(sel.text)) {
             this.text = sel.text;
         } else {
-            this.text = sel.toString();
+            if (sel.toString) {
+                this.text = sel.toString();
+            } else {
+                this.text = '';
+            }
         }
     };
     
@@ -96,8 +106,12 @@
 
         var nodes = Y.all(Y.Selection.ALL),
             baseNodes = Y.all('strong,em'),
+            doc = Y.config.doc,
+            hrs = doc.getElementsByTagName('hr'),
             classNames = {}, cssString = '',
             ls;
+
+            console.log(hrs);
 
         var startTime1 = (new Date()).getTime();
         nodes.each(function(n) {
@@ -135,6 +149,16 @@
         });
         var endTime1 = (new Date()).getTime();
         Y.log('Node Filter Timer: ' + (endTime1 - startTime1) + 'ms', 'info', 'selection');
+
+        Y.each(hrs, function(hr) {
+            var el = doc.createElement('div');
+                el.setAttribute('style', 'border: 1px solid #ccc; line-height: 0; font-size: 0;margin-top: 5px; margin-bottom: 5px;');
+                el.setAttribute('readonly', true);
+                if (hr.parentNode) {
+                    hr.parentNode.replaceChild(el, hr);
+                }
+
+        });
 
         Y.each(classNames, function(v, k) {
             cssString += k + ' { font-family: ' + v.replace(/"/gi, '') + '; }';
@@ -215,7 +239,7 @@
                 if (html == '' || html == ' ') {
                     single.set('innerHTML', Y.Selection.CURSOR);
                     sel = new Y.Selection();
-                    sel.focusCursor(true, false);
+                    sel.focusCursor(true, true);
                 }
             }
         } else {
@@ -410,9 +434,49 @@
     */
     Y.Selection.DEFAULT_TAG = 'span';
 
+    /**
+    * The id of the outer cursor wrapper
+    * @static
+    * @property DEFAULT_TAG
+    */
     Y.Selection.CURID = 'yui-cursor';
 
-    Y.Selection.CURSOR = '<span id="' + Y.Selection.CURID + '">&nbsp;</span>';
+    /**
+    * The id used to wrap the inner space of the cursor position
+    * @static
+    * @property CUR_WRAPID
+    */
+    Y.Selection.CUR_WRAPID = 'yui-cursor-wrapper';
+
+    /**
+    * The default HTML used to focus the cursor..
+    * @static
+    * @property CURSOR
+    */
+    Y.Selection.CURSOR = '<span id="' + Y.Selection.CURID + '"><span id="' + Y.Selection.CUR_WRAPID + '">&nbsp;</span></span>';
+
+    /**
+    * Called from Editor keydown to remove the "extra" space before the cursor.
+    * @static
+    * @method cleanCursor
+    */
+    Y.Selection.cleanCursor = function() {
+        var cur = Y.config.doc.getElementById(Y.Selection.CUR_WRAPID);
+        if (cur) {
+            cur.id = '';
+            if (cur.innerHTML == '&nbsp;' || cur.innerHTML == '<br>') {
+                if (cur.parentNode) {
+                    cur.parentNode.removeChild(cur);
+                }
+            }
+        }
+        /*
+        var cur = Y.one('#' + Y.Selection.CUR_WRAPID);
+        if (cur && cur.get('innerHTML') == '&nbsp;') {
+            cur.remove();
+        }
+        */
+    };
 
     Y.Selection.prototype = {
         /**
@@ -556,7 +620,9 @@
             
             if (range.pasteHTML) {
                 newNode = Y.Node.create(html);
-                range.pasteHTML('<span id="rte-insert"></span>');
+                try {
+                    range.pasteHTML('<span id="rte-insert"></span>');
+                } catch (e) {}
                 inHTML = Y.one('#rte-insert');
                 if (inHTML) {
                     inHTML.set('id', '');
@@ -577,7 +643,7 @@
 
                     txt = Y.one(Y.config.doc.createTextNode(inHTML.substr(0, offset)));
                     txt2 = Y.one(Y.config.doc.createTextNode(inHTML.substr(offset)));
-                    
+
                     node.replace(txt, node);
                     newNode = Y.Node.create(html);
                     if (newNode.get('nodeType') === 11) {
@@ -586,8 +652,8 @@
                         newNode = b;
                     }
                     txt.insert(newNode, 'after');
-
-                    if (txt2 && txt2.get('length')) {
+                    //if (txt2 && txt2.get('length')) {
+                    if (txt2) {
                         newNode.insert(cur, 'after');
                         cur.insert(txt2, 'after');
                         this.selectNode(cur, collapse);
@@ -597,7 +663,7 @@
                         node = node.get('parentNode');
                     }
                     newNode = Y.Node.create(html);
-                    node.append(newNode);
+                    node.insert(newNode, 'before');
                 }
             }
             return newNode;
@@ -766,7 +832,7 @@
             if (cur) {
                 if (keep) {
                     cur.removeAttribute('id');
-                    cur.set('innerHTML', '&nbsp;');
+                    cur.set('innerHTML', '<span id="' + Y.Selection.CUR_WRAPID + '">&nbsp;</span>');
                 } else {
                     cur.remove();
                 }

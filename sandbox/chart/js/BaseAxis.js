@@ -16,6 +16,7 @@ function BaseAxis (config)
     this._createId();
     this._keys = {};
     this._data = [];
+    this._keyCollection = [];
     BaseAxis.superclass.constructor.apply(this, arguments);
 }
 
@@ -110,8 +111,12 @@ BaseAxis.ATTRS = {
 			{
 				//remove listeners
 			}
-            value = Y.merge(value);
-			this._dataProvider = {data:value.data.concat()};
+			if(value.hasOwnProperty("data") && Y.Lang.isArray(value.data))
+            {
+                value = Y.merge(value);
+                value = value.data;
+            }
+            this._dataProvider = {data:value.concat()};
 			this._dataClone = this._dataProvider.data.concat();
 			return value;
 		},
@@ -221,11 +226,42 @@ BaseAxis.ATTRS = {
 	 * Hash of array identifed by a string value.
 	 */
 	keys: {
-		getter: function ()
+		lazyAdd: false,
+
+        getter: function ()
 		{
 			return this._keys;
-		}
-	}
+		},
+
+        setter: function(val)
+        {
+            var i, l;
+            if(Y.Lang.isArray(val))
+            {
+                l = val.length;
+                for(i = 0; i < l; ++i)
+                {
+                    this.addKey(val[i]);
+                }
+                return;
+            }
+            for(i in val)
+            {
+                if(val.hasOwnProperty(i))
+                {
+                    this.addKey(val[i]);
+                }
+            }
+        }
+	},
+
+    keyCollection: {
+        getter: function()
+        {
+            return this._keyCollection;
+        },
+        readOnly: true
+    }
 };
 
 Y.extend(BaseAxis, Y.Base,
@@ -325,12 +361,13 @@ Y.extend(BaseAxis, Y.Base,
 	 */
 	addKey: function (value)
 	{
-		if(this._keys.hasOwnProperty(value)) 
+		if(this.get("keys").hasOwnProperty(value)) 
 		{
 			return;
 		}
-		this._dataClone = this._dataProvider.data.concat();
-		var keys = this._keys,
+        this._keyCollection.push(value);
+		this._dataClone = this.get("dataProvider").data.concat();
+		var keys = this.get("keys"),
 			eventKeys = {},
 			event = {axis:this};
 		this._setDataByKey(value);
@@ -366,7 +403,7 @@ Y.extend(BaseAxis, Y.Base,
 			obj = dv[i];
 			arr[i] = obj[key];
 		}
-		this._keys[key] = arr;
+		this.get("keys")[key] = arr;
 		this._data = this._data.concat(arr);
 	},
 		
@@ -379,7 +416,7 @@ Y.extend(BaseAxis, Y.Base,
 	 */
 	removeKey: function(value)
 	{
-		if(!this._keys.hasOwnProperty(value)) 
+		if(!this.get("keys").hasOwnProperty(value)) 
 		{
 			return;
 		}
@@ -388,8 +425,13 @@ Y.extend(BaseAxis, Y.Base,
 			newKeys = {},
 			newData = [],
 			removedKeys = {},
-			keys = this._keys,
-			event = {};
+			keys = this.get("keys"),
+			event = {},
+            keyCollection = this.get("keyCollection");
+        if(keyCollection.indexOf(value) > -1)
+        {
+            keyCollection.splice(keyCollection.indexOf(value), 1);
+        }
 		removedKeys[value] = keys[value].concat();
 		for(key in keys)
 		{
@@ -417,7 +459,7 @@ Y.extend(BaseAxis, Y.Base,
 	getKeyValueAt: function(key, index)
 	{
 		var value = NaN,
-			keys = this._keys;
+			keys = this.get("keys");
 		if(keys[key] && keys[key][index]) 
 		{
 			value = keys[key][index];
@@ -430,7 +472,7 @@ Y.extend(BaseAxis, Y.Base,
 	 */
 	getDataByKey: function (value)
 	{
-		var keys = this._keys;
+		var keys = this.get("keys");
 		if(keys[value])
 		{
 			return keys[value];
@@ -481,10 +523,10 @@ Y.extend(BaseAxis, Y.Base,
 	newDataUpdateHandler: function()
 	{
 		var i,
-			keys = this._keys,
+			keys = this.get("keys"),
 			event = {}; 
 		this._data = [];
-		this._dataClone = this._dataProvider.data.concat();
+		this._dataClone = this.get("dataProvider").data.concat();
 		for(i in keys)
 		{
 			if(keys.hasOwnProperty(i))
@@ -508,7 +550,7 @@ Y.extend(BaseAxis, Y.Base,
 			event = {},
 			keysAdded = event.keysAdded,
 			keysRemoved = event.keysRemoved,
-			keys = this._keys,
+			keys = this.get("keys"),
             i;
 		for(i in keys)
 		{
@@ -557,6 +599,25 @@ Y.extend(BaseAxis, Y.Base,
         }
         
         return Math.min(units, this._data.length);
+    },
+
+    getMajorUnitDistance: function(len, uiLen, majorUnit)
+    {
+        var dist;
+        if(majorUnit.determinant === "count")
+        {
+            dist = uiLen/(len - 1);
+        }
+        else if(majorUnit.determinant === "distance")
+        {
+            dist = majorUnit.distance;
+        }
+        return dist;
+    },
+
+    getEdgeOffset: function(ct, l)
+    {
+        return 0;
     },
 
     getLabelAtPosition:function(pos, len, format)

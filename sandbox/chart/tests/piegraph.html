@@ -42,7 +42,8 @@ table, tr, td
 }
 </style>
 <!-- BEGIN EXAMPLE CODE -->	
-	<script type="text/javascript" src="../../../build/yui/yui.js"></script>
+	<!--script type="text/javascript" src="../../../build/yui/yui.js"></script-->
+    <script src="http://yui.yahooapis.com/3.1.1/build/yui/yui-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/dom/dom-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/node/node-min.js"></script>
     <script type="text/javascript" src="../../graphics/build/graphics/graphics-min.js"></script>
@@ -92,8 +93,7 @@ table, tr, td
                                                         categoryAxis:timeaxis,
                                                         valueAxis:numericaxis,
                                                         categoryKey:"day",
-                                                        valueKey:"taxes",
-                                                        styles: {over:{fillAlphas:[1], borderColors:[1]}, fillColors:["#eeeeee", "#ff0000", "#0000ff"], fillAlphas:[".2"], borderWeights:[1], borderColors:["#ffcc00", "#000fff"], padding: {left:50, top:50, right:50, bottom:50}}
+                                                        valueKey:"taxes"
                                                     });
                   var graph = new Y.Graph({parent:"#chart", seriesCollection:[pieSeries]});
                     var tt = new Y.Tooltip({

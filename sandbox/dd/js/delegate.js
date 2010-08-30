@@ -79,7 +79,7 @@ YUI.add('dd-delegate', function(Y) {
         _delMouseDown: function(e) {
             var tar = e.currentTarget,
                 dd = this.dd;
-
+            
             if (tar.test(this.get(NODES)) && !tar.test(this.get('invalid'))) {
                 this._shimState = Y.DD.DDM._noShim;
                 Y.DD.DDM._noShim = true;
@@ -91,6 +91,7 @@ YUI.add('dd-delegate', function(Y) {
                     dd.set('dragNode', tar);
                 }
                 dd._prep();
+                
                 dd.fire('drag:mouseDown', { ev: e });
             }
         },
@@ -116,7 +117,7 @@ YUI.add('dd-delegate', function(Y) {
         initializer: function(cfg) {
             this._handles = [];
             //Create a tmp DD instance under the hood.
-            var conf = this.get('dragConfig') || {},
+            var conf = Y.clone(this.get('dragConfig') || {}),
                 cont = this.get(CONT);
 
             conf.node = _tmpNode.cloneNode(true);

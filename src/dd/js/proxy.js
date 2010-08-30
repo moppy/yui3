@@ -153,7 +153,6 @@
 
             delete c._yuid;
             c.setAttribute('id', Y.guid());
-
             c.setStyle('position', 'absolute');
             n.get('parentNode').appendChild(c);
             host.set(DRAG_NODE, c);

@@ -41,6 +41,14 @@ CartesianSeries.ATTRS = {
 	order: {
 	    value:NaN
     },
+
+    /**
+     * Order of the ISeries instance
+     */
+    graphOrder: {
+        value:NaN
+    },
+
 	/**
 	 * x coordinates for the series.
 	 */
@@ -258,29 +266,33 @@ Y.extend(CartesianSeries, Y.Renderer, {
 	{
         var nextX, nextY,
             node = Y.Node.one(this._parentNode).get("parentNode"),
-			w = node.get("offsetWidth"),
+            w = node.get("offsetWidth"),
             h = node.get("offsetHeight"),
-            padding = this.get("styles").padding,
-			leftPadding = padding.left,
-			topPadding = padding.top,
-			dataWidth = w - (leftPadding + padding.right),
-			dataHeight = h - (topPadding + padding.bottom),
-			xcoords = [],
-			ycoords = [],
             xAxis = this.get("xAxis"),
             yAxis = this.get("yAxis"),
+            xData = this.get("xData").concat(),
+            yData = this.get("yData").concat(),
+            xOffset = xAxis.getEdgeOffset(xData.length, w),
+            yOffset = yAxis.getEdgeOffset(yData.length, h),
+            padding = this.get("padding"),
+			leftPadding = padding.left,
+			topPadding = padding.top,
+			dataWidth = w - (leftPadding + padding.right + xOffset),
+			dataHeight = h - (topPadding + padding.bottom + yOffset),
+			xcoords = [],
+			ycoords = [],
 			xMax = xAxis.get("maximum"),
 			xMin = xAxis.get("minimum"),
 			yMax = yAxis.get("maximum"),
 			yMin = yAxis.get("minimum"),
 			xScaleFactor = dataWidth / (xMax - xMin),
 			yScaleFactor = dataHeight / (yMax - yMin),
-            xData = this.get("xData").concat(),
-            yData = this.get("yData").concat(),
             dataLength,
             direction = this.get("direction"),
             i = 0;
             dataLength = xData.length; 	
+            xOffset *= 0.5;
+            yOffset *= 0.5;
         //Assuming a vertical graph has a range/category for its vertical axis.    
         if(direction === "vertical")
         {
@@ -290,12 +302,12 @@ Y.extend(CartesianSeries, Y.Renderer, {
         {
             this.get("graphic").setSize(w, h);
         }
-        this._leftOrigin = Math.round(((0 - xMin) * xScaleFactor) + leftPadding);
-        this._bottomOrigin =  Math.round((dataHeight + topPadding) - (0 - yMin) * yScaleFactor);
+        this._leftOrigin = Math.round(((0 - xMin) * xScaleFactor) + leftPadding + xOffset);
+        this._bottomOrigin =  Math.round((dataHeight + topPadding + yOffset) - (0 - yMin) * yScaleFactor);
         for (; i < dataLength; ++i) 
 		{
-            nextX = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding));
-			nextY = Math.round(((dataHeight + topPadding) - (yData[i] - yMin) * yScaleFactor));
+            nextX = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
+			nextY = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
             xcoords.push(nextX);
             ycoords.push(nextY);
         }
@@ -525,14 +537,17 @@ Y.extend(CartesianSeries, Y.Renderer, {
     getMarker: function(config)
     {
         var marker,
+            colorIndex = this.get("graphOrder"),
             cache = this._markerCache,
             styles = config.styles,
             index = config.index;
+        config.colorIndex = colorIndex;
         if(cache.length > 0)
         {
             marker = cache.shift();
             marker.set("index", index);
             marker.set("series", this);
+            marker.set("colorIndex", colorIndex);
             if(marker.get("styles") !== styles)
             {
                 marker.set("styles", styles);
@@ -597,6 +612,21 @@ Y.extend(CartesianSeries, Y.Renderer, {
                 right: 0,
                 bottom: 0
             }};
+    },
+
+    /**
+     * @private
+     * @description Colors used if style colors are not specified
+     */
+    _getDefaultColor: function(index)
+    {
+        var colors = [
+                "#2011e6", "#f5172c", "#00ff33", "#ff6600", "#7f03d6", "#f3f301",
+				"#4982b8", "#f905eb", "#0af9da", "#fecb01", "#8e9a9b", "#d701fe",
+				"#8cb3d1", "#d18cae", "#b3ddd3", "#fcc551", "#785a85", "#f86b0e"
+            ];
+        index = index || 0;
+        return colors[index];
     }
 });
 
